@@ -4,70 +4,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>베이스 지판 퀴즈</title>
+  <title>베이스 지판 외우기</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
   <div class="container">
-    <header>
-      <h1>베이스 지판 퀴즈</h1>
-      <p>베이스 음을 연주하여 정답을 맞혀보세요!</p>
-    </header>
+    <div class="control-panel">
+      <button id="startButton" class="button">마이크 켜기</button>
+      <button id="stopButton" class="button" disabled>중지</button>
+    </div>
 
-    <div class="quiz-container">
-      <div class="fretboard-display">
-        <div class="string-container">
-          <div class="string string-g">G 현</div>
-          <div class="string string-d">D 현</div>
-          <div class="string string-a">A 현</div>
-          <div class="string string-e">E 현</div>
-        </div>
-        <div class="fretboard">
-          <!-- 지판은 자바스크립트로 동적 생성됩니다 -->
-        </div>
+    <div class="result-container">
+      <div class="visualization">
+        <canvas id="waveform"></canvas>
+        <canvas id="frequencyBars"></canvas>
       </div>
 
-      <div class="quiz-content">
-        <div class="quiz-question">
-          <h2>다음 음을 연주하세요:</h2>
-          <div id="target-note">A</div>
+      <div class="note-display">
+        <div class="current-note">
+          <span>감지된 베이스 음:</span>
+          <h2 id="detectedNote">-</h2>
         </div>
-        <div class="controls">
-          <button id="start-btn" class="btn">퀴즈 시작</button>
-          <button id="listen-btn" class="btn">정답 듣기</button>
-          <button id="record-btn" class="btn">녹음 시작</button>
-        </div>
-        <div class="feedback" id="feedback">
-          <span class="feedback-text">연주를 시작하세요...</span>
-        </div>
-        <div class="score">
-          <span>점수:</span>
-          <span id="score-value">0</span>
+        <div class="frequency-display">
+          <span>주파수:</span>
+          <h3 id="detectedFrequency">0 Hz</h3>
         </div>
       </div>
     </div>
 
-    <div class="audio-visualization">
-      <canvas id="audio-canvas"></canvas>
-      <div class="detected-note">
-        <span>감지된 음:</span>
-        <span id="detected-note-value">-</span>
-      </div>
-    </div>
-
-    <div class="instructions">
-      <h3>사용 방법</h3>
-      <ol>
-        <li>'퀴즈 시작' 버튼을 클릭하여 시작하세요.</li>
-        <li>랜덤으로 표시되는 음을 베이스로 연주하세요.</li>
-        <li>'정답 듣기' 버튼을 클릭하면 정답 음을 들을 수 있습니다.</li>
-        <li>'녹음 시작' 버튼을 클릭한 후 연주하면 정답 여부를 평가합니다.</li>
-      </ol>
-    </div>
+    <div class="status-message" id="statusMessage"></div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="script.js"></script>
 </body>
 
 </html>
