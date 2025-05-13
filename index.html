@@ -18,6 +18,25 @@
       표시된 음을 베이스로 연주하세요. 음을 정확히 인식하면 다음 문제로 넘어갑니다.
     </div>
 
+    <!-- 게임 결과 모달창 -->
+    <div id="resultModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>게임 결과</h2>
+        <div class="result-summary">
+          <div class="result-item">
+            <span>맞춘 개수:</span>
+            <h3 id="finalScore">0</h3>
+          </div>
+          <div class="result-item">
+            <span>경과 시간:</span>
+            <h3 id="finalTime">00:00</h3>
+          </div>
+        </div>
+        <button id="restartButton" class="button">다시 시작</button>
+      </div>
+    </div>
+
     <div class="game-area">
       <div class="target-note">
         <span>목표 음:</span>

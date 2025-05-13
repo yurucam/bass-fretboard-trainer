@@ -8,6 +8,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const scoreCount = document.getElementById("scoreCount");
   const timeDisplay = document.getElementById("timeDisplay");
 
+  // 모달 관련 요소
+  const resultModal = document.getElementById("resultModal");
+  const closeBtn = document.querySelector(".close");
+  const finalScore = document.getElementById("finalScore");
+  const finalTime = document.getElementById("finalTime");
+  const restartButton = document.getElementById("restartButton");
+
   // 오디오 컨텍스트 및 변수 초기화
   let audioContext;
   let analyser;
@@ -27,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let consecutiveCorrectDetections = 0;
   let requiredConsecutiveDetections = 3; // 인식 문제를 고려해 여러 번 연속 인식되어야 성공으로 처리
   let toleranceTimer = null;
-  
+
   // 애니메이션 관련 변수
   let successAnimationActive = false;
   let isFirstNoteAfterStart = true; // 게임 시작 후 첫 번째 음표 표시 여부 확인용
@@ -315,8 +322,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 애니메이션 클래스들 제거
-    targetNote.classList.remove('success-animation', 'fade-in');
-    
+    targetNote.classList.remove("success-animation", "fade-in");
+
     // 타이머와 게임 로직 시작
     updateTimer();
     generateNewTargetNote(); // 직접 새 목표음 생성 함수 호출
@@ -356,6 +363,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // 버튼 상태 업데이트
     startButton.disabled = false;
     stopButton.disabled = true;
+
+    // 결과 모달창 표시
+    showResultModal();
   }
 
   // 타이머 업데이트 함수
@@ -549,7 +559,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 상태 업데이트 - 다음 목표음으로 전환 중임을 표시
     waitingForNextNote = true;
     successAnimationActive = true;
-    
+
     // 게임 시작 직후 첫 음표가 아닐 때만 Confetti 효과 실행
     if (!isFirstNoteAfterStart) {
       console.log("Confetti 효과 실행 시도...");
@@ -559,16 +569,16 @@ document.addEventListener("DOMContentLoaded", () => {
           particleCount: 300,
           spread: 100,
           origin: { y: 0.5 },
-          colors: ['#4caf50', '#00bcd4', '#ff9800', '#f44336', '#9c27b0'],
-          disableForReducedMotion: true,  // 접근성 고려
-          zIndex: 9999  // 앞쪽에 표시
+          colors: ["#4caf50", "#00bcd4", "#ff9800", "#f44336", "#9c27b0"],
+          disableForReducedMotion: true, // 접근성 고려
+          zIndex: 9999, // 앞쪽에 표시
         });
-        
+
         // 전역 도우미 함수도 실행 (있는 경우)
-        if (typeof window.showSuccessConfetti === 'function') {
+        if (typeof window.showSuccessConfetti === "function") {
           window.showSuccessConfetti();
         }
-        
+
         console.log("Confetti 효과 실행 성공!");
       } catch (error) {
         console.error("Confetti 효과 실행 중 오류:", error);
@@ -576,10 +586,10 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       console.log("게임 시작 후 첫 음표 설정 - Confetti 효과 생략");
     }
-    
+
     // 현재 음에 성공 애니메이션 적용
-    targetNote.classList.add('success-animation');
-    
+    targetNote.classList.add("success-animation");
+
     // 이전 타이머가 있다면 제거
     if (noteSuccessTimer) {
       clearTimeout(noteSuccessTimer);
@@ -594,13 +604,13 @@ document.addEventListener("DOMContentLoaded", () => {
         // 목표음 변경 처리를 위한 플래그 재설정
         waitingForNextNote = false;
         successAnimationActive = false;
-        
+
         // 애니메이션 클래스 제거
-        targetNote.classList.remove('success-animation');
-        
+        targetNote.classList.remove("success-animation");
+
         // 이전 목표음을 현재 목표음으로 저장
         lastTargetNote = currentTargetNote;
-        
+
         // 현재 목표음 초기화하여 강제로 새 음 선택하게 함
         currentTargetNote = "";
 
@@ -618,18 +628,18 @@ document.addEventListener("DOMContentLoaded", () => {
     let randomIndex;
     let attempts = 0;
     const maxAttempts = 10; // 무한 루프 방지를 위한 최대 시도 횟수
-    
+
     do {
       randomIndex = Math.floor(Math.random() * bassNotes.length);
       attempts++;
-      
+
       // 음의 수가 2개 이하인 경우 무한 루프 방지
       if (bassNotes.length <= 2 || attempts >= maxAttempts) {
         break;
       }
     } while (
       bassNotes[randomIndex].note === currentTargetNote || // 현재 목표음과 같은 경우
-      bassNotes[randomIndex].note === lastTargetNote       // 이전 목표음과 같은 경우
+      bassNotes[randomIndex].note === lastTargetNote // 이전 목표음과 같은 경우
     );
 
     currentTargetNote = bassNotes[randomIndex].note;
@@ -639,16 +649,16 @@ document.addEventListener("DOMContentLoaded", () => {
     targetNote.textContent = currentTargetNote;
     targetNote.dataset.description = bassNotes[randomIndex].description;
     targetNote.setAttribute("title", bassNotes[randomIndex].description);
-    
+
     // 목표음에 fade-in 애니메이션 적용
-    targetNote.classList.add('fade-in');
+    targetNote.classList.add("fade-in");
     setTimeout(() => {
-      targetNote.classList.remove('fade-in');
+      targetNote.classList.remove("fade-in");
     }, 700);
 
     // 상태 업데이트
     consecutiveCorrectDetections = 0;
-    
+
     // 첫 음표 설정 후 플래그를 false로 변경
     if (isFirstNoteAfterStart) {
       isFirstNoteAfterStart = false;
@@ -772,5 +782,62 @@ document.addEventListener("DOMContentLoaded", () => {
   // 오류 처리
   window.addEventListener("error", (event) => {
     console.error("오류 발생:", event);
+  });
+
+  // 결과 모달창 표시 함수
+  function showResultModal() {
+    // 결과 데이터 업데이트
+    const totalScore = score;
+    const totalTime = timeDisplay.textContent;
+
+    finalScore.textContent = totalScore;
+    finalTime.textContent = totalTime;
+
+    // 높은 점수에는 축하 confetti
+    if (totalScore >= 20) {
+      try {
+        confetti({
+          particleCount: 200,
+          spread: 160,
+          origin: { y: 0.3 },
+          colors: ["#4caf50", "#00bcd4", "#ff9800", "#f44336", "#9c27b0"],
+        });
+      } catch (error) {
+        console.error("Confetti 효과 실행 중 오류:", error);
+      }
+    }
+
+    // 모달창 표시 (애니메이션 효과와 함께)
+    resultModal.style.display = "block";
+    setTimeout(() => {
+      resultModal.classList.add("show");
+    }, 10);
+  }
+
+  // 모달창 닫기
+  closeBtn.addEventListener("click", () => {
+    resultModal.classList.remove("show");
+    setTimeout(() => {
+      resultModal.style.display = "none";
+    }, 300);
+  });
+
+  // 모달창 바깥 클릭 시 닫기
+  window.addEventListener("click", (event) => {
+    if (event.target === resultModal) {
+      resultModal.classList.remove("show");
+      setTimeout(() => {
+        resultModal.style.display = "none";
+      }, 300);
+    }
+  });
+
+  // 다시 시작 버튼
+  restartButton.addEventListener("click", () => {
+    resultModal.classList.remove("show");
+    setTimeout(() => {
+      resultModal.style.display = "none";
+      startButton.click(); // 게임 시작 버튼 자동 클릭
+    }, 300);
   });
 });
