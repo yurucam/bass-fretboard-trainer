@@ -5,8 +5,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const statusMessage = document.getElementById("statusMessage");
   const detectedNote = document.getElementById("detectedNote");
   const detectedFrequency = document.getElementById("detectedFrequency");
-  const waveformCanvas = document.getElementById("waveform");
-  const frequencyBarsCanvas = document.getElementById("frequencyBars");
 
   // 오디오 컨텍스트 및 변수 초기화
   let audioContext;
@@ -97,18 +95,6 @@ document.addEventListener("DOMContentLoaded", () => {
     C3: { min: 127.01, max: 134.5, target: 130.81 },
   };
 
-  // 캔버스 컨텍스트 초기화
-  const waveformCtx = waveformCanvas.getContext("2d");
-  const frequencyBarsCtx = frequencyBarsCanvas.getContext("2d");
-
-  // 캔버스 크기 설정
-  function setupCanvas() {
-    waveformCanvas.width = waveformCanvas.offsetWidth;
-    waveformCanvas.height = waveformCanvas.offsetHeight;
-    frequencyBarsCanvas.width = frequencyBarsCanvas.offsetWidth;
-    frequencyBarsCanvas.height = frequencyBarsCanvas.offsetHeight;
-  }
-
   // 브라우저가 Safari인지 확인
   function isSafari() {
     return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -187,11 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
       stopButton.disabled = false;
       statusMessage.textContent = "마이크 연결됨. 베이스 음 감지 중...";
 
-      // 캔버스 설정
-      setupCanvas();
-
       // 분석 시작
-      visualize();
       detectBassNote();
     } catch (error) {
       statusMessage.textContent = `마이크 접근 오류: ${error.message}`;
@@ -228,20 +210,6 @@ document.addEventListener("DOMContentLoaded", () => {
     detectedNote.textContent = "-";
     detectedFrequency.textContent = "0 Hz";
     statusMessage.textContent = "마이크가 꺼졌습니다.";
-
-    // 캔버스 초기화
-    clearCanvases();
-  }
-
-  // 캔버스 초기화
-  function clearCanvases() {
-    waveformCtx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
-    frequencyBarsCtx.clearRect(
-      0,
-      0,
-      frequencyBarsCanvas.width,
-      frequencyBarsCanvas.height
-    );
   }
 
   // 개선된 자기상관(YIN algorithm 기반) 음 감지 함수
@@ -560,153 +528,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 다음 프레임에서 재호출 (약간 빠르게 호출하여 응답성 향상)
     setTimeout(() => detectBassNote(), 80);
-  }
-
-  // 오디오 시각화
-  function visualize() {
-    if (!analyser) return;
-
-    // 캔버스 크기 확인 및 조정
-    if (waveformCanvas.width !== waveformCanvas.offsetWidth) {
-      setupCanvas();
-    }
-
-    // 애니메이션 프레임 요청
-    animationId = requestAnimationFrame(visualize);
-
-    // 파형 그리기
-    drawWaveform();
-
-    // 주파수 바 그리기
-    drawFrequencyBars();
-  }
-
-  // 파형 그리기
-  function drawWaveform() {
-    if (!analyser) return;
-
-    try {
-      // 시간 도메인 데이터 가져오기
-      analyser.getByteTimeDomainData(dataArray);
-
-      // 캔버스 초기화
-      waveformCtx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
-
-      // 파형 스타일 설정
-      waveformCtx.lineWidth = 2;
-      waveformCtx.strokeStyle = "#4fc3f7";
-      waveformCtx.beginPath();
-
-      // 각 데이터 포인트마다 선 그리기
-      const sliceWidth = waveformCanvas.width / (bufferLength - 1);
-      let x = 0;
-
-      // 성능 향상을 위해 일부 데이터만 사용
-      const step = 2;
-
-      for (let i = 0; i < bufferLength; i += step) {
-        const v = dataArray[i] / 128.0; // 0-255 범위를 0-2 범위로 변환
-        const y = (v * waveformCanvas.height) / 2;
-
-        if (i === 0) {
-          waveformCtx.moveTo(x, y);
-        } else {
-          waveformCtx.lineTo(x, y);
-        }
-
-        x += sliceWidth * step;
-      }
-
-      waveformCtx.lineTo(waveformCanvas.width, waveformCanvas.height / 2);
-      waveformCtx.stroke();
-    } catch (error) {
-      console.error("파형 그리기 오류:", error);
-    }
-  }
-
-  // 베이스 주파수에 집중한 주파수 바 그리기
-  function drawFrequencyBars() {
-    if (!analyser) return;
-
-    // 주파수 데이터 가져오기
-    analyser.getByteFrequencyData(dataArray);
-
-    // 캔버스 초기화
-    frequencyBarsCtx.clearRect(
-      0,
-      0,
-      frequencyBarsCanvas.width,
-      frequencyBarsCanvas.height
-    );
-
-    // 베이스 기타 주파수 범위 강조 표시
-    const sampleRate = audioContext.sampleRate;
-    const binSize = sampleRate / analyser.fftSize;
-
-    // 바 그리기
-    const barWidth = 8; // 고정된 너비의 바
-    const barSpacing = 1; // 바 사이 간격
-    const lowFreqLimit = 200; // 저주파 한계 (베이스 기타 범위)
-
-    // 특정 주파수 범위만 표시 (베이스 기타 관련 주파수)
-    const maxBin = Math.floor(lowFreqLimit / binSize);
-    const barCount = Math.min(40, maxBin); // 최대 40개 바만 표시
-
-    // 바 사이 간격을 포함한 총 너비 계산
-    const totalBarWidth = (barWidth + barSpacing) * barCount;
-    const startX = (frequencyBarsCanvas.width - totalBarWidth) / 2;
-
-    // 각 베이스 현의 주파수에 해당하는 빈(bin) 인덱스 계산
-    const stringBins = bassStrings.map((string) => {
-      return {
-        note: string.note,
-        bin: Math.round(string.frequency / binSize),
-        color: string.color,
-      };
-    }); // 주파수 바 그리기
-    for (let i = 0; i < barCount; i++) {
-      // 해당 주파수 계산
-      const frequency = i * binSize;
-
-      // 바의 높이 계산 (로그 스케일로 변환하여 저주파수 더 보이게)
-      const barHeight = dataArray[i] * 2.0;
-
-      // 바 색상 설정 (해당 주파수가 베이스 현과 일치하는지 확인)
-      let barColor = `hsl(${180 + (i / barCount) * 180}, 80%, 60%)`;
-
-      // 베이스 현 주파수와 가까운 경우 해당 현의 색상으로 표시
-      const relevantStringBins = stringBins; // 항상 모든 음 사용
-
-      for (const stringBin of relevantStringBins) {
-        if (Math.abs(i - stringBin.bin) <= 1) {
-          barColor = stringBin.color;
-          break;
-        }
-      }
-
-      // 바 그리기
-      frequencyBarsCtx.fillStyle = barColor;
-      frequencyBarsCtx.fillRect(
-        startX + i * (barWidth + barSpacing),
-        frequencyBarsCanvas.height - barHeight,
-        barWidth,
-        barHeight
-      );
-
-      // 베이스 현 주파수 위치에 라벨 표시
-      relevantStringBins.forEach((stringBin) => {
-        if (i === stringBin.bin) {
-          frequencyBarsCtx.fillStyle = "#ffffff";
-          frequencyBarsCtx.textAlign = "center";
-          frequencyBarsCtx.font = "10px Arial";
-          frequencyBarsCtx.fillText(
-            stringBin.note,
-            startX + i * (barWidth + barSpacing) + barWidth / 2,
-            frequencyBarsCanvas.height - barHeight - 5
-          );
-        }
-      });
-    }
   }
 
   // 창 크기 변경 시 캔버스 리사이징
