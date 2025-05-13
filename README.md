@@ -1,6 +1,10 @@
 # Bass Fretboard Trainer
 
-![test video](/test.mp4)
+
+https://github.com/user-attachments/assets/597034fa-7554-4a92-9437-eb202d9cb7b2
+
+
+
 
 https://bass-fretboard-trainer.yuru.cam
 
