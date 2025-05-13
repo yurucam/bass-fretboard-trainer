@@ -2,76 +2,189 @@ document.addEventListener("DOMContentLoaded", () => {
   // DOM 요소 참조
   const startButton = document.getElementById("startButton");
   const stopButton = document.getElementById("stopButton");
-  const statusMessage = document.getElementById("statusMessage");
   const detectedNote = document.getElementById("detectedNote");
   const detectedFrequency = document.getElementById("detectedFrequency");
+  const targetNote = document.getElementById("targetNote");
+  const scoreCount = document.getElementById("scoreCount");
+  const timeDisplay = document.getElementById("timeDisplay");
 
   // 오디오 컨텍스트 및 변수 초기화
   let audioContext;
   let analyser;
   let microphone;
   let animationId;
-  let dataArray;
-  let bufferLength;
   let timeDataArray;
   let lastDetectedNotes = [];
+  let lastTargetNote = null; // 이전 목표음 저장 변수
 
-  // 베이스 기타 현 정의 - 각 현의 정보
-  const bassStrings = [
+  // 게임 변수
+  let score = 0;
+  let gameActive = false;
+  let gameStartTime;
+  let currentTargetNote;
+  let waitingForNextNote = false;
+  let noteSuccessTimer = null;
+  let consecutiveCorrectDetections = 0;
+  let requiredConsecutiveDetections = 3; // 인식 문제를 고려해 여러 번 연속 인식되어야 성공으로 처리
+  let toleranceTimer = null;
+  
+  // 애니메이션 관련 변수
+  let successAnimationActive = false;
+  let isFirstNoteAfterStart = true; // 게임 시작 후 첫 번째 음표 표시 여부 확인용
+
+  // 베이스 기타 음 정의 - 기본 4줄만 사용
+  const bassNotes = [
     {
-      note: "E0",
-      frequency: 20.6,
-      color: "#800080",
-      description: "E0 (초저음)",
+      note: "E1",
+      frequency: 41.2,
+      description: "4번줄 개방",
+      string: 4,
+      fret: 0,
     },
-    { note: "F0", frequency: 21.83, color: "#9932CC", description: "F0" },
-    { note: "F#0", frequency: 23.12, color: "#9400D3", description: "F#0" },
-    { note: "G0", frequency: 24.5, color: "#8A2BE2", description: "G0" },
-    { note: "G#0", frequency: 25.96, color: "#4B0082", description: "G#0" },
-    { note: "A0", frequency: 27.5, color: "#483D8B", description: "A0" },
-    { note: "A#0", frequency: 29.14, color: "#6A5ACD", description: "A#0" },
-    { note: "B0", frequency: 30.87, color: "#7B68EE", description: "B0" },
-    { note: "C1", frequency: 32.7, color: "#8470FF", description: "C1" },
-    { note: "C#1", frequency: 34.65, color: "#A865DB", description: "C#1" },
-    { note: "D1", frequency: 36.71, color: "#9B59BC", description: "D1" },
-    { note: "D#1", frequency: 38.89, color: "#8E44AD", description: "D#1" },
-    { note: "E1", frequency: 41.2, color: "#FF5252", description: "E (낮음)" },
-    { note: "F1", frequency: 43.65, color: "#FF4530", description: "F1" },
-    { note: "F#1", frequency: 46.25, color: "#FF6347", description: "F#1" },
-    { note: "G1", frequency: 49.0, color: "#FFA500", description: "G1" },
-    { note: "G#1", frequency: 51.91, color: "#FFB733", description: "G#1" },
-    { note: "A1", frequency: 55.0, color: "#FFD740", description: "A" },
-    { note: "A#1", frequency: 58.27, color: "#FFEB3B", description: "A#1" },
-    { note: "B1", frequency: 61.74, color: "#C1DC43", description: "B1" },
-    { note: "C2", frequency: 65.41, color: "#90EE90", description: "C2" },
-    { note: "C#2", frequency: 69.3, color: "#74D97E", description: "C#2" },
-    { note: "D2", frequency: 73.42, color: "#64FFDA", description: "D" },
-    { note: "D#2", frequency: 77.78, color: "#00CED1", description: "D#2" },
-    { note: "E2", frequency: 82.41, color: "#63B8FF", description: "E2" },
-    { note: "F2", frequency: 87.31, color: "#5591F5", description: "F2" },
-    { note: "F#2", frequency: 92.5, color: "#4169E1", description: "F#2" },
-    { note: "G2", frequency: 98.0, color: "#448AFF", description: "G" },
-    { note: "G#2", frequency: 103.83, color: "#0000CD", description: "G#2" },
-    { note: "A2", frequency: 110.0, color: "#3D59AB", description: "A2" },
-    { note: "A#2", frequency: 116.54, color: "#4682B4", description: "A#2" },
-    { note: "B2", frequency: 123.47, color: "#5F9EA0", description: "B2" },
-    { note: "C3", frequency: 130.81, color: "#008B8B", description: "C3" },
+    {
+      note: "F1",
+      frequency: 43.65,
+      description: "4번줄 1프렛",
+      string: 4,
+      fret: 1,
+    },
+    {
+      note: "F#1",
+      frequency: 46.25,
+      description: "4번줄 2프렛",
+      string: 4,
+      fret: 2,
+    },
+    {
+      note: "G1",
+      frequency: 49.0,
+      description: "4번줄 3프렛",
+      string: 4,
+      fret: 3,
+    },
+    {
+      note: "G#1",
+      frequency: 51.91,
+      description: "4번줄 4프렛",
+      string: 4,
+      fret: 4,
+    },
+    {
+      note: "A1",
+      frequency: 55.0,
+      description: "3번줄 개방",
+      string: 3,
+      fret: 0,
+    },
+    {
+      note: "A#1",
+      frequency: 58.27,
+      description: "3번줄 1프렛",
+      string: 3,
+      fret: 1,
+    },
+    {
+      note: "B1",
+      frequency: 61.74,
+      description: "3번줄 2프렛",
+      string: 3,
+      fret: 2,
+    },
+    {
+      note: "C2",
+      frequency: 65.41,
+      description: "3번줄 3프렛",
+      string: 3,
+      fret: 3,
+    },
+    {
+      note: "C#2",
+      frequency: 69.3,
+      description: "3번줄 4프렛",
+      string: 3,
+      fret: 4,
+    },
+    {
+      note: "D2",
+      frequency: 73.42,
+      description: "2번줄 개방",
+      string: 2,
+      fret: 0,
+    },
+    {
+      note: "D#2",
+      frequency: 77.78,
+      description: "2번줄 1프렛",
+      string: 2,
+      fret: 1,
+    },
+    {
+      note: "E2",
+      frequency: 82.41,
+      description: "2번줄 2프렛",
+      string: 2,
+      fret: 2,
+    },
+    {
+      note: "F2",
+      frequency: 87.31,
+      description: "2번줄 3프렛",
+      string: 2,
+      fret: 3,
+    },
+    {
+      note: "F#2",
+      frequency: 92.5,
+      description: "2번줄 4프렛",
+      string: 2,
+      fret: 4,
+    },
+    {
+      note: "G2",
+      frequency: 98.0,
+      description: "1번줄 개방",
+      string: 1,
+      fret: 0,
+    },
+    {
+      note: "G#2",
+      frequency: 103.83,
+      description: "1번줄 1프렛",
+      string: 1,
+      fret: 1,
+    },
+    {
+      note: "A2",
+      frequency: 110.0,
+      description: "1번줄 2프렛",
+      string: 1,
+      fret: 2,
+    },
+    {
+      note: "A#2",
+      frequency: 116.54,
+      description: "1번줄 3프렛",
+      string: 1,
+      fret: 3,
+    },
+    {
+      note: "B2",
+      frequency: 123.47,
+      description: "1번줄 4프렛",
+      string: 1,
+      fret: 4,
+    },
+    {
+      note: "C3",
+      frequency: 130.81,
+      description: "1번줄 5프렛",
+      string: 1,
+      fret: 5,
+    },
   ];
 
   // 베이스 주파수 감지 범위 설정 - 더 넓은 범위로 조정 (반음 간격)
   const bassFrequencyRanges = {
-    E0: { min: 19.45, max: 21.2, target: 20.6 },
-    F0: { min: 21.21, max: 22.45, target: 21.83 },
-    "F#0": { min: 22.46, max: 23.8, target: 23.12 },
-    G0: { min: 23.81, max: 25.2, target: 24.5 },
-    "G#0": { min: 25.21, max: 26.7, target: 25.96 },
-    A0: { min: 26.71, max: 28.3, target: 27.5 },
-    "A#0": { min: 28.31, max: 30.0, target: 29.14 },
-    B0: { min: 30.01, max: 31.75, target: 30.87 },
-    C1: { min: 31.76, max: 33.65, target: 32.7 },
-    "C#1": { min: 33.66, max: 35.65, target: 34.65 },
-    D1: { min: 35.66, max: 37.75, target: 36.71 },
-    "D#1": { min: 37.76, max: 40.0, target: 38.89 },
     E1: { min: 40.01, max: 42.4, target: 41.2 },
     F1: { min: 42.41, max: 44.95, target: 43.65 },
     "F#1": { min: 44.96, max: 47.6, target: 46.25 },
@@ -103,10 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 사파리 브라우저 감지
   const isSafariBrowser = isSafari();
 
-  // 확장된 음들을 포함한 모든 음 요소 참조를 저장할 배열
-  let allNoteElements = [];
-
-  // 마이크 접근 시작
+  // 게임 시작 버튼
   startButton.addEventListener("click", async () => {
     try {
       if (!audioContext) {
@@ -147,9 +257,6 @@ document.addEventListener("DOMContentLoaded", () => {
       analyser.fftSize = isSafariBrowser ? 8192 : 16384;
       analyser.smoothingTimeConstant = isSafariBrowser ? 0.9 : 0.85; // Safari에서 더 많은 스무딩
 
-      bufferLength = analyser.frequencyBinCount;
-      dataArray = new Uint8Array(bufferLength);
-
       // 시간 도메인 데이터용 배열 (음 감지용)
       timeDataArray = new Float32Array(analyser.fftSize);
 
@@ -168,23 +275,100 @@ document.addEventListener("DOMContentLoaded", () => {
       microphone.connect(analyser);
       console.log("오디오 연결 완료");
 
+      // 게임 시작
+      startGame();
+
       // UI 업데이트
       startButton.disabled = true;
       stopButton.disabled = false;
-      statusMessage.textContent = "마이크 연결됨. 베이스 음 감지 중...";
-
-      // 분석 시작
-      detectBassNote();
     } catch (error) {
-      statusMessage.textContent = `마이크 접근 오류: ${error.message}`;
       console.error("마이크 접근 오류:", error);
     }
   });
 
   // 정지 버튼
   stopButton.addEventListener("click", () => {
-    stopAudioProcessing();
+    endGame();
   });
+
+  // 게임 시작 함수
+  function startGame() {
+    // 게임 변수 초기화
+    gameActive = true;
+    score = 0;
+    gameStartTime = Date.now();
+    scoreCount.textContent = "0";
+    waitingForNextNote = false;
+    consecutiveCorrectDetections = 0;
+    lastTargetNote = null;
+    successAnimationActive = false;
+    isFirstNoteAfterStart = true; // 게임 시작 후 첫 번째 음표 설정임을 표시
+
+    // 이전 타이머가 있다면 모두 제거
+    if (noteSuccessTimer) {
+      clearTimeout(noteSuccessTimer);
+      noteSuccessTimer = null;
+    }
+    if (toleranceTimer) {
+      clearTimeout(toleranceTimer);
+      toleranceTimer = null;
+    }
+
+    // 애니메이션 클래스들 제거
+    targetNote.classList.remove('success-animation', 'fade-in');
+    
+    // 타이머와 게임 로직 시작
+    updateTimer();
+    generateNewTargetNote(); // 직접 새 목표음 생성 함수 호출
+    detectBassNote();
+
+    // 타이머 시작 (게임 시간 업데이트용)
+    const timerInterval = setInterval(() => {
+      if (!gameActive) {
+        clearInterval(timerInterval); // 게임이 종료되면 타이머도 종료
+        return;
+      }
+      updateTimer();
+    }, 1000);
+  }
+
+  // 게임 종료 함수
+  function endGame() {
+    gameActive = false;
+
+    // 진행 중인 타이머 제거
+    if (noteSuccessTimer) {
+      clearTimeout(noteSuccessTimer);
+      noteSuccessTimer = null;
+    }
+
+    if (toleranceTimer) {
+      clearTimeout(toleranceTimer);
+      toleranceTimer = null;
+    }
+
+    stopAudioProcessing();
+
+    // UI 초기화
+    targetNote.textContent = "-";
+    targetNote.dataset.description = "";
+
+    // 버튼 상태 업데이트
+    startButton.disabled = false;
+    stopButton.disabled = true;
+  }
+
+  // 타이머 업데이트 함수
+  function updateTimer() {
+    if (!gameActive) return;
+
+    const elapsedTime = Math.floor((Date.now() - gameStartTime) / 1000);
+    const minutes = Math.floor(elapsedTime / 60)
+      .toString()
+      .padStart(2, "0");
+    const seconds = (elapsedTime % 60).toString().padStart(2, "0");
+    timeDisplay.textContent = `${minutes}:${seconds}`;
+  } // 다음 목표 음 설정 - 플래그 관리 담당
 
   // 오디오 처리 중지
   function stopAudioProcessing() {
@@ -205,11 +389,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // UI 업데이트
-    startButton.disabled = false;
-    stopButton.disabled = true;
     detectedNote.textContent = "-";
     detectedFrequency.textContent = "0 Hz";
-    statusMessage.textContent = "마이크가 꺼졌습니다.";
   }
 
   // 개선된 자기상관(YIN algorithm 기반) 음 감지 함수
@@ -244,19 +425,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const bufferSize = normalizedSignal.length;
     const sampleRate = audioContext.sampleRate;
 
-    // 베이스 기타 주파수 범위에 해당하는 지연 계산 (더 넓은 범위)
-    const minPeriod = Math.floor(sampleRate / 140); // G2보다 약간 높은 주파수의 주기
-    const maxPeriod = Math.ceil(sampleRate / 20); // E1보다 약간 낮은 주파수의 주기
+    // 베이스 기타 주파수 범위에 해당하는 지연 계산
+    const minPeriod = Math.floor(sampleRate / 140);
+    const maxPeriod = Math.ceil(sampleRate / 20);
 
-    // YIN 알고리즘 사용 (저주파수 감지에 효과적)
+    // YIN 알고리즘 사용
     const yinBuffer = new Float32Array(maxPeriod);
 
     // YIN 알고리즘의 첫 번째 단계: 자기 차이 함수
     for (let tau = 0; tau < maxPeriod; tau++) {
       yinBuffer[tau] = 0;
 
-      // 초기 샘플을 적당히 건너뛰어 계산 (중요한 범위만 계산)
-      const startSample = Math.floor(bufferSize * 0.1); // 앞의 10%만 건너뜀
+      // 초기 샘플을 적당히 건너뛰어 계산
+      const startSample = Math.floor(bufferSize * 0.1);
 
       for (let i = startSample; i < bufferSize - tau; i++) {
         const delta = normalizedSignal[i] - normalizedSignal[i + tau];
@@ -274,9 +455,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 임계값을 사용하여 주기 검출
     let tau = 0;
-    const thresholdYIN = isSafariBrowser ? 0.05 : 0.1; // Safari에서는 더 낮은 임계값
+    const thresholdYIN = isSafariBrowser ? 0.05 : 0.1;
 
-    // minPeriod 이후부터 첫 번째 dip 검색 (임계값 이하)
+    // minPeriod 이후부터 첫 번째 dip 검색
     for (tau = minPeriod; tau < maxPeriod; tau++) {
       if (yinBuffer[tau] < thresholdYIN) {
         // 국소 최솟값 찾기
@@ -289,7 +470,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 유효한 주기를 찾지 못한 경우
     if (tau == maxPeriod || yinBuffer[tau] >= 0.5) {
-      console.log("유효한 주기를 찾지 못함");
       return null;
     }
 
@@ -315,30 +495,169 @@ document.addEventListener("DOMContentLoaded", () => {
     // 주파수 계산
     const fundamentalFrequency = sampleRate / betterTau;
 
-    // 베이스 기타 주파수 범위 외의 주파수는 무시 (더 넓은 범위)
-    if (fundamentalFrequency < 19 || fundamentalFrequency > 135) {
-      console.log(
-        "베이스 범위 밖의 주파수:",
-        fundamentalFrequency.toFixed(2),
-        "Hz"
-      );
+    // 베이스 기타 주파수 범위 외의 주파수는 무시
+    if (fundamentalFrequency < 40 || fundamentalFrequency > 135) {
       return null;
     }
 
-    console.log(
-      "감지된 주파수:",
-      fundamentalFrequency.toFixed(2),
-      "Hz (신뢰도:",
-      (1 - yinBuffer[tau]).toFixed(4),
-      ")"
-    );
     return fundamentalFrequency;
+  }
+
+  // 음이 목표 음과 일치하는지 확인하는 함수
+  function checkNoteMatch(detectedNote) {
+    if (!gameActive || waitingForNextNote || successAnimationActive) return;
+
+    if (detectedNote === currentTargetNote) {
+      consecutiveCorrectDetections++;
+
+      // 인식 문제를 고려해 여러 번 연속 인식되어야 성공으로 처리
+
+      // 필요한 횟수만큼 연속 인식되면 성공으로 처리
+      if (consecutiveCorrectDetections >= requiredConsecutiveDetections) {
+        noteSuccess();
+      }
+    } else {
+      // 틀린 음을 연주한 경우
+      consecutiveCorrectDetections = 0;
+
+      // 틀려도 목표음이 바뀌지 않게 타이머 로직 제거
+      // 이전에 설정된 타이머가 있다면 제거
+      if (toleranceTimer) {
+        clearTimeout(toleranceTimer);
+        toleranceTimer = null;
+      }
+    }
+  }
+
+  // 음을 성공적으로 맞췄을 때의 처리
+  function noteSuccess() {
+    if (!gameActive) return; // 게임이 활성화된 상태일 때만 처리
+    if (waitingForNextNote) return; // 이미 대기 중이면 중복 처리 방지
+
+    console.log("성공! 타이머 초기화 및 점수 증가");
+
+    // 진행 중인 타이머 제거
+    if (toleranceTimer) {
+      clearTimeout(toleranceTimer);
+      toleranceTimer = null;
+    }
+
+    // 점수 증가
+    score++;
+    scoreCount.textContent = score.toString();
+
+    // 상태 업데이트 - 다음 목표음으로 전환 중임을 표시
+    waitingForNextNote = true;
+    successAnimationActive = true;
+    
+    // 게임 시작 직후 첫 음표가 아닐 때만 Confetti 효과 실행
+    if (!isFirstNoteAfterStart) {
+      console.log("Confetti 효과 실행 시도...");
+      try {
+        // 기존 confetti 함수 실행
+        confetti({
+          particleCount: 300,
+          spread: 100,
+          origin: { y: 0.5 },
+          colors: ['#4caf50', '#00bcd4', '#ff9800', '#f44336', '#9c27b0'],
+          disableForReducedMotion: true,  // 접근성 고려
+          zIndex: 9999  // 앞쪽에 표시
+        });
+        
+        // 전역 도우미 함수도 실행 (있는 경우)
+        if (typeof window.showSuccessConfetti === 'function') {
+          window.showSuccessConfetti();
+        }
+        
+        console.log("Confetti 효과 실행 성공!");
+      } catch (error) {
+        console.error("Confetti 효과 실행 중 오류:", error);
+      }
+    } else {
+      console.log("게임 시작 후 첫 음표 설정 - Confetti 효과 생략");
+    }
+    
+    // 현재 음에 성공 애니메이션 적용
+    targetNote.classList.add('success-animation');
+    
+    // 이전 타이머가 있다면 제거
+    if (noteSuccessTimer) {
+      clearTimeout(noteSuccessTimer);
+      noteSuccessTimer = null;
+    }
+
+    // 일정 시간 후 다음 문제로 - 직접 목표음 변경 함수 호출
+    console.log("성공! 1.5초 후 다음 목표음으로 전환");
+    noteSuccessTimer = setTimeout(function () {
+      if (gameActive) {
+        console.log("다음 목표음으로 전환 시작");
+        // 목표음 변경 처리를 위한 플래그 재설정
+        waitingForNextNote = false;
+        successAnimationActive = false;
+        
+        // 애니메이션 클래스 제거
+        targetNote.classList.remove('success-animation');
+        
+        // 이전 목표음을 현재 목표음으로 저장
+        lastTargetNote = currentTargetNote;
+        
+        // 현재 목표음 초기화하여 강제로 새 음 선택하게 함
+        currentTargetNote = "";
+
+        // 다음 목표음 설정 직접 호출
+        generateNewTargetNote();
+      }
+    }, 1500);
+  }
+
+  // 새로운 목표음 생성 함수 - setNextTargetNote와 분리하여 로직 단순화
+  function generateNewTargetNote() {
+    console.log("새로운 목표음 생성 중...");
+
+    // 랜덤하게 다음 음 선택 (현재 음과 이전 음과 다른 음으로)
+    let randomIndex;
+    let attempts = 0;
+    const maxAttempts = 10; // 무한 루프 방지를 위한 최대 시도 횟수
+    
+    do {
+      randomIndex = Math.floor(Math.random() * bassNotes.length);
+      attempts++;
+      
+      // 음의 수가 2개 이하인 경우 무한 루프 방지
+      if (bassNotes.length <= 2 || attempts >= maxAttempts) {
+        break;
+      }
+    } while (
+      bassNotes[randomIndex].note === currentTargetNote || // 현재 목표음과 같은 경우
+      bassNotes[randomIndex].note === lastTargetNote       // 이전 목표음과 같은 경우
+    );
+
+    currentTargetNote = bassNotes[randomIndex].note;
+    console.log("새 목표음 설정 완료:", currentTargetNote);
+
+    // UI 업데이트
+    targetNote.textContent = currentTargetNote;
+    targetNote.dataset.description = bassNotes[randomIndex].description;
+    targetNote.setAttribute("title", bassNotes[randomIndex].description);
+    
+    // 목표음에 fade-in 애니메이션 적용
+    targetNote.classList.add('fade-in');
+    setTimeout(() => {
+      targetNote.classList.remove('fade-in');
+    }, 700);
+
+    // 상태 업데이트
+    consecutiveCorrectDetections = 0;
+    
+    // 첫 음표 설정 후 플래그를 false로 변경
+    if (isFirstNoteAfterStart) {
+      isFirstNoteAfterStart = false;
+    }
   }
 
   // 개선된 베이스 기타 음 감지 (메인 함수)
   function detectBassNote() {
-    if (!analyser || !audioContext) {
-      console.log("분석기 또는 오디오 컨텍스트가 없어 감지를 중단합니다.");
+    if (!analyser || !audioContext || !gameActive) {
       return;
     }
 
@@ -352,50 +671,43 @@ document.addEventListener("DOMContentLoaded", () => {
         detectedFrequency.textContent = "0 Hz";
 
         // 다음 프레임에서 재호출
-        setTimeout(() => detectBassNote(), 100);
+        animationId = requestAnimationFrame(detectBassNote);
         return;
       }
 
-      console.log("감지된 주파수:", detectedFreq.toFixed(2), "Hz");
-
-      // 베이스 기타 음 결정 (배음 분석 포함)
+      // 베이스 기타 음 결정
       let matchedNote = null;
       let matchSource = "";
 
-      // 1. 먼저 현의 기본 주파수 범위에 있는지 확인 (가장 높은 우선순위)
-      for (const string of bassStrings) {
-        const note = string.note;
-        const targetFreq = string.frequency;
+      // 현의 기본 주파수 범위에 있는지 확인
+      for (const bassNote of bassNotes) {
+        const note = bassNote.note;
         const range = bassFrequencyRanges[note];
 
         // 주파수가 현의 허용 범위 내에 있는 경우
         if (detectedFreq >= range.min && detectedFreq <= range.max) {
           matchedNote = note;
           matchSource = "기본음";
-          console.log(
-            `${note} 현의 기본 범위 내에 있음 (${targetFreq.toFixed(2)}Hz)`
-          );
           break;
         }
       }
 
-      // 2. 기본 주파수에서 매칭되지 않았다면 배음 검사 (더 정확한 배음 검출)
+      // 배음 검사
       if (!matchedNote) {
         let bestMatch = null;
         let bestMatchScore = 0;
 
-        for (const string of bassStrings) {
-          const note = string.note;
-          const targetFreq = string.frequency;
+        for (const bassNote of bassNotes) {
+          const note = bassNote.note;
+          const targetFreq = bassNote.frequency;
 
-          // 분수 관계 확인 - 배음 관계를 더 정확하게 확인
-          // (감지된 주파수가 기본 주파수의 정수 배에 가까운지)
+          // 분수 관계 확인 - 배음 관계
           const ratio = detectedFreq / targetFreq;
           const nearestHarmonic = Math.round(ratio);
 
           // 유효한 배음 관계인지 확인 (2-5배음만 확인)
           if (nearestHarmonic >= 2 && nearestHarmonic <= 5) {
-            // 얼마나 정확히 배음 관계에 있는지 계산 (1.0이 완벽한 배음)
+            // 얼마나 정확히 배음 관계에 있는지 계산
             const harmonicAccuracy =
               1.0 - Math.abs(ratio - nearestHarmonic) / nearestHarmonic;
 
@@ -410,89 +722,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (bestMatch) {
           matchedNote = bestMatch;
-          console.log(
-            `${matchedNote}의 ${matchSource} 감지됨 (정확도: ${(
-              bestMatchScore * 100
-            ).toFixed(1)}%)`
-          );
-        }
-      }
-
-      // 3. 여전히 매치가 없으면, 역배음 관계 확인 (기본 주파수보다 낮은 경우)
-      if (!matchedNote) {
-        for (const string of bassStrings) {
-          const note = string.note;
-          const targetFreq = string.frequency;
-
-          // 베이스 현의 주파수가 감지된 주파수의 배음인지 확인
-          // (감지된 주파수가 베이스 현의 1/2, 1/3, 1/4 등인 경우)
-          for (let denominator = 2; denominator <= 3; denominator++) {
-            const subharmonicFreq = targetFreq / denominator;
-            // 허용 오차 범위
-            const tolerance = subharmonicFreq * 0.06; // 6% 오차 허용
-
-            if (Math.abs(detectedFreq - subharmonicFreq) <= tolerance) {
-              matchedNote = note;
-              matchSource = `역배음 1/${denominator}`;
-              console.log(
-                `${note}의 역배음 관계 감지 (1/${denominator}, ${subharmonicFreq.toFixed(
-                  2
-                )}Hz)`
-              );
-              break;
-            }
-          }
-
-          if (matchedNote) break;
-        }
-      }
-
-      // 4. 마지막으로 가장 가까운 현 찾기 (배음 관계가 아닌 경우)
-      if (!matchedNote) {
-        let closestNote = null;
-        let minDistance = Infinity;
-        let percentDiff = Infinity;
-
-        for (const string of bassStrings) {
-          const note = string.note;
-          const targetFreq = string.frequency;
-          // 거리 계산 (로그 스케일로 계산하여 더 정확하게)
-          const distance = Math.abs(
-            Math.log2(detectedFreq) - Math.log2(targetFreq)
-          );
-
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestNote = note;
-            percentDiff = (Math.pow(2, distance) - 1) * 100;
-          }
-        }
-
-        // 오차 범위가 25% 이내인 경우에만 매치로 인정
-        if (percentDiff <= 25) {
-          matchedNote = closestNote;
-          matchSource = "근접";
-          console.log(
-            `가장 가까운 현: ${closestNote} (차이: ${percentDiff.toFixed(2)}%)`
-          );
-        } else {
-          console.log(
-            `베이스 범위 밖의 주파수: ${detectedFreq.toFixed(
-              2
-            )}Hz (가장 가까운 현과의 차이: ${percentDiff.toFixed(2)}%)`
-          );
         }
       }
 
       // 최종 결과 안정화 (히스토리 기반)
       if (matchedNote) {
         lastDetectedNotes.push(matchedNote);
-        if (lastDetectedNotes.length > 8) {
-          // 히스토리 길이 증가
+        if (lastDetectedNotes.length > 5) {
           lastDetectedNotes.shift();
         }
 
-        // 가장 빈번하게 나타난 음 선택 (최소 2번 이상 나타난 경우만)
+        // 가장 빈번하게 나타난 음 선택
         const noteCounts = {};
         let maxCount = 0;
         let mostFrequentNote = matchedNote;
@@ -505,18 +745,17 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        // 최종 선택된 음과 해당 주파수
+        // 최종 선택된 음
         const finalNote = mostFrequentNote;
 
         // UI 업데이트
         detectedNote.textContent = finalNote;
-        detectedFrequency.textContent = `${detectedFreq.toFixed(
-          2
-        )} Hz (${matchSource})`;
+        detectedFrequency.textContent = `${detectedFreq.toFixed(2)} Hz`;
 
-        console.log(`최종 선택된 음: ${finalNote} (${matchSource})`);
+        // 게임 로직 - 음이 목표 음과 일치하는지 확인
+        checkNoteMatch(finalNote);
       } else {
-        // 베이스 기타 범위 밖의 주파수인 경우
+        // 범위 밖의 주파수인 경우
         detectedNote.textContent = "-";
         detectedFrequency.textContent = `${detectedFreq.toFixed(
           2
@@ -526,16 +765,12 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("베이스 음 감지 오류:", error);
     }
 
-    // 다음 프레임에서 재호출 (약간 빠르게 호출하여 응답성 향상)
-    setTimeout(() => detectBassNote(), 80);
+    // 다음 프레임에서 재호출
+    animationId = requestAnimationFrame(detectBassNote);
   }
-
-  // 창 크기 변경 시 캔버스 리사이징
-  window.addEventListener("resize", setupCanvas);
 
   // 오류 처리
   window.addEventListener("error", (event) => {
-    statusMessage.textContent = `오류 발생: ${event.message}`;
     console.error("오류 발생:", event);
   });
 });
