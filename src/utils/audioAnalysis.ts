@@ -106,9 +106,9 @@ export class AudioPitchDetector {
 
       const signalAverage = signalSum / this.timeDataArray.length;
 
-      // 신호가 너무 약하면 무시 (임계값을 매우 낮게 설정)
+      // 신호가 너무 약하면 무시 (임계값을 더욱 낮게 설정)
       // Safari에서는 더 낮은 임계값 사용
-      const minSignalThreshold = this.isSafariBrowser ? 0.000005 : 0.00001;
+      const minSignalThreshold = this.isSafariBrowser ? 0.000001 : 0.000005;
       if (signalAverage < minSignalThreshold) {
         return null;
       }
@@ -122,9 +122,9 @@ export class AudioPitchDetector {
       const bufferSize = normalizedSignal.length;
       const sampleRate = this.audioContext.sampleRate;
 
-      // 베이스 기타 주파수 범위에 해당하는 지연 계산
-      const minPeriod = Math.floor(sampleRate / 140);
-      const maxPeriod = Math.ceil(sampleRate / 20);
+      // 베이스 기타 주파수 범위에 해당하는 지연 계산 (A1 55Hz까지 포함)
+      const minPeriod = Math.floor(sampleRate / 200); // 더 높은 주파수까지
+      const maxPeriod = Math.ceil(sampleRate / 30); // A1 (55Hz)보다 낮은 주파수까지
 
       // YIN 알고리즘 사용
       const yinBuffer = new Float32Array(maxPeriod);
@@ -150,9 +150,9 @@ export class AudioPitchDetector {
         yinBuffer[tau] *= tau / runningSum;
       }
 
-      // 임계값을 사용하여 주기 검출
+      // 임계값을 사용하여 주기 검출 (더 민감하게 조정)
       let tau = 0;
-      const thresholdYIN = this.isSafariBrowser ? 0.05 : 0.1;
+      const thresholdYIN = this.isSafariBrowser ? 0.03 : 0.05;
 
       // minPeriod 이후부터 첫 번째 dip 검색
       for (tau = minPeriod; tau < maxPeriod; tau++) {
@@ -192,8 +192,8 @@ export class AudioPitchDetector {
       // 주파수 계산
       const fundamentalFrequency = sampleRate / betterTau;
 
-      // 베이스 기타 주파수 범위 외의 주파수는 무시
-      if (fundamentalFrequency < 40 || fundamentalFrequency > 135) {
+      // 베이스 기타 주파수 범위 외의 주파수는 무시 (A1 55Hz 포함)
+      if (fundamentalFrequency < 30 || fundamentalFrequency > 200) {
         return null;
       }
 

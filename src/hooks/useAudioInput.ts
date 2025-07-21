@@ -115,11 +115,7 @@ export function useAudioInput({
       }
 
       // 주파수를 베이스 음표로 변환
-      const detectedNote = frequencyToNote(
-        frequency,
-        bassNotesRef.current,
-        frequencyRangesRef.current
-      );
+      const detectedNote = frequencyToNote(frequency, bassNotesRef.current);
 
       setState((prev) => ({ ...prev, detectedNote }));
 

@@ -155,26 +155,35 @@ export function generateFrequencyRanges(bassNotes: BassNoteFrequency[]): {
 // 감지된 주파수를 베이스 음표로 변환
 export function frequencyToNote(
   frequency: number,
-  bassNotes: BassNoteFrequency[],
-  frequencyRanges: {
-    [key: string]: { min: number; max: number; target: number };
-  }
+  bassNotes: BassNoteFrequency[]
 ): BassNoteFrequency | null {
-  // 기본음 검사
+  // 기본음 검사 - 더 관대한 허용 오차 적용
+  let bestMatch: { note: BassNoteFrequency; error: number } | null = null;
+
   for (const note of bassNotes) {
-    const range = frequencyRanges[note.note];
-    if (range && frequency >= range.min && frequency <= range.max) {
-      return note;
+    const targetFreq = note.frequency;
+    const tolerance = targetFreq * 0.15; // 15% 허용 오차로 확대
+    const error = Math.abs(frequency - targetFreq);
+
+    if (error <= tolerance) {
+      if (!bestMatch || error < bestMatch.error) {
+        bestMatch = { note, error };
+      }
     }
   }
 
-  // 배음 검사 (2-5배음)
+  // 기본음에서 매치가 있으면 우선 반환
+  if (bestMatch) {
+    return bestMatch.note;
+  }
+
+  // 배음 검사는 기본음 매치가 없을 때만 수행 (2-3배음만)
   for (const note of bassNotes) {
     const targetFreq = note.frequency;
 
-    for (let harmonic = 2; harmonic <= 5; harmonic++) {
+    for (let harmonic = 2; harmonic <= 3; harmonic++) {
       const harmonicFreq = targetFreq * harmonic;
-      const tolerance = harmonicFreq * 0.1; // 10% 허용 오차
+      const tolerance = harmonicFreq * 0.2; // 20% 허용 오차
 
       if (Math.abs(frequency - harmonicFreq) <= tolerance) {
         return note;
