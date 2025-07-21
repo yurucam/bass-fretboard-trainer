@@ -1,80 +1,13 @@
-<!DOCTYPE html>
-<html lang="ko">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>베이스 지판 맞추기</title>
-  <link rel="stylesheet" href="styles.css">
-  <!-- Confetti 라이브러리 추가 (defer 속성 제거) -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-  <script src="confetti-helper.js"></script>
-</head>
-
-<body>
-  <div class="container">
-    <h1>베이스 지판 맞추기</h1>
-    <div class="description">
-      표시된 음을 베이스로 연주하세요. 음을 정확히 인식하면 다음 문제로 넘어갑니다.
-    </div>
-
-    <!-- 게임 결과 모달창 -->
-    <div id="resultModal" class="modal">
-      <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>게임 결과</h2>
-        <div class="result-summary">
-          <div class="result-item">
-            <span>맞춘 개수:</span>
-            <h3 id="finalScore">0</h3>
-          </div>
-          <div class="result-item">
-            <span>경과 시간:</span>
-            <h3 id="finalTime">00:00</h3>
-          </div>
-        </div>
-        <button id="restartButton" class="button">다시 시작</button>
-      </div>
-    </div>
-
-    <div class="game-area">
-      <div class="target-note">
-        <span>목표 음:</span>
-        <h2 id="targetNote">-</h2>
-      </div>
-
-      <div class="control-panel">
-        <button id="startButton" class="button">게임 시작</button>
-        <button id="stopButton" class="button" disabled>게임 종료</button>
-      </div>
-
-      <div class="result-container">
-        <div class="note-display">
-          <div class="current-note">
-            <span>감지된 음:</span>
-            <h2 id="detectedNote">-</h2>
-          </div>
-          <div class="frequency-display">
-            <span>주파수:</span>
-            <h3 id="detectedFrequency">0 Hz</h3>
-          </div>
-        </div>
-      </div>
-
-      <div class="progress-container">
-        <div class="score-display">
-          <span>맞춘 개수:</span>
-          <h3 id="scoreCount">0</h3>
-        </div>
-        <div class="timer-display">
-          <span>시간:</span>
-          <h3 id="timeDisplay">00:00</h3>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
-</body>
-
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React + TS</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
