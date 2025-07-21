@@ -2,20 +2,20 @@ import React, { useRef, useEffect } from "react";
 import { OpenSheetMusicDisplay } from "opensheetmusicdisplay";
 
 interface SheetMusicViewerProps {
-  musicXmlUrl: string;
+  musicXmlContent: string;
   cursorPosition: number;
 }
 
 const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
-  musicXmlUrl,
+  musicXmlContent,
   cursorPosition,
 }) => {
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
 
   const loadAndRenderScore = async (osmd: OpenSheetMusicDisplay) => {
     try {
-      // MusicXML 파일 로드
-      await osmd.load(musicXmlUrl);
+      // MusicXML 문자열을 직접 로드
+      await osmd.load(musicXmlContent);
 
       // 악보 렌더링
       osmd.render();
