@@ -1,17 +1,128 @@
-// 4현 베이스 음정 데이터
+// 베이스 음정 데이터
 export interface BassNote {
   step: string;
   octave: number;
   alter?: number; // 샤프/플랫 (-1: 플랫, 1: 샤프)
 }
 
-// 4현 베이스 EADG 튜닝 (표준 음정)
-// E1 = 41.2Hz, A1 = 55Hz, D2 = 73.4Hz, G2 = 98Hz
-const BASS_STRINGS = [
-  { name: "E", octave: 1, midiBase: 28 }, // 4현 (가장 굵은 현)
-  { name: "A", octave: 1, midiBase: 33 }, // 3현
-  { name: "D", octave: 2, midiBase: 38 }, // 2현
-  { name: "G", octave: 2, midiBase: 43 }, // 1현 (가장 얇은 현)
+// 베이스 현 정보
+export interface BassString {
+  name: string;
+  octave: number;
+  midiBase: number;
+}
+
+// 베이스 튜닝 설정
+export interface BassTuning {
+  name: string;
+  strings: BassString[];
+}
+
+// 미리 정의된 튜닝들
+export const PRESET_TUNINGS: BassTuning[] = [
+  // 4현 베이스
+  {
+    name: "4현 - Standard (EADG)",
+    strings: [
+      { name: "E", octave: 1, midiBase: 28 }, // 4현 (가장 굵은 현)
+      { name: "A", octave: 1, midiBase: 33 }, // 3현
+      { name: "D", octave: 2, midiBase: 38 }, // 2현
+      { name: "G", octave: 2, midiBase: 43 }, // 1현 (가장 얇은 현)
+    ],
+  },
+  {
+    name: "4현 - Drop D (DADG)",
+    strings: [
+      { name: "D", octave: 1, midiBase: 26 }, // 4현 (Drop D)
+      { name: "A", octave: 1, midiBase: 33 }, // 3현
+      { name: "D", octave: 2, midiBase: 38 }, // 2현
+      { name: "G", octave: 2, midiBase: 43 }, // 1현
+    ],
+  },
+  {
+    name: "4현 - Half Step Down (D#G#C#F#)",
+    strings: [
+      { name: "D#", octave: 1, midiBase: 27 }, // 4현
+      { name: "G#", octave: 1, midiBase: 32 }, // 3현
+      { name: "C#", octave: 2, midiBase: 37 }, // 2현
+      { name: "F#", octave: 2, midiBase: 42 }, // 1현
+    ],
+  },
+  {
+    name: "4현 - Whole Step Down (DGCF)",
+    strings: [
+      { name: "D", octave: 1, midiBase: 26 }, // 4현
+      { name: "G", octave: 1, midiBase: 31 }, // 3현
+      { name: "C", octave: 2, midiBase: 36 }, // 2현
+      { name: "F", octave: 2, midiBase: 41 }, // 1현
+    ],
+  },
+  // 5현 베이스
+  {
+    name: "5현 - Standard (BEADG)",
+    strings: [
+      { name: "B", octave: 0, midiBase: 23 }, // 5현 (가장 굵은 현)
+      { name: "E", octave: 1, midiBase: 28 }, // 4현
+      { name: "A", octave: 1, midiBase: 33 }, // 3현
+      { name: "D", octave: 2, midiBase: 38 }, // 2현
+      { name: "G", octave: 2, midiBase: 43 }, // 1현 (가장 얇은 현)
+    ],
+  },
+  {
+    name: "5현 - High C (EADGC)",
+    strings: [
+      { name: "E", octave: 1, midiBase: 28 }, // 5현
+      { name: "A", octave: 1, midiBase: 33 }, // 4현
+      { name: "D", octave: 2, midiBase: 38 }, // 3현
+      { name: "G", octave: 2, midiBase: 43 }, // 2현
+      { name: "C", octave: 3, midiBase: 48 }, // 1현 (High C)
+    ],
+  },
+  // 6현 베이스
+  {
+    name: "6현 - Standard (BEADGC)",
+    strings: [
+      { name: "B", octave: 0, midiBase: 23 }, // 6현 (가장 굵은 현)
+      { name: "E", octave: 1, midiBase: 28 }, // 5현
+      { name: "A", octave: 1, midiBase: 33 }, // 4현
+      { name: "D", octave: 2, midiBase: 38 }, // 3현
+      { name: "G", octave: 2, midiBase: 43 }, // 2현
+      { name: "C", octave: 3, midiBase: 48 }, // 1현 (가장 얇은 현)
+    ],
+  },
+  {
+    name: "6현 - Extended Range (F#BEADG)",
+    strings: [
+      { name: "F#", octave: 0, midiBase: 18 }, // 6현 (매우 굵은 현)
+      { name: "B", octave: 0, midiBase: 23 }, // 5현
+      { name: "E", octave: 1, midiBase: 28 }, // 4현
+      { name: "A", octave: 1, midiBase: 33 }, // 3현
+      { name: "D", octave: 2, midiBase: 38 }, // 2현
+      { name: "G", octave: 2, midiBase: 43 }, // 1현
+    ],
+  },
+  // 추가 특수 튜닝들
+  {
+    name: "5현 - Drop A (AEADG)",
+    strings: [
+      { name: "A", octave: 0, midiBase: 21 }, // 5현 (Drop A)
+      { name: "E", octave: 1, midiBase: 28 }, // 4현
+      { name: "A", octave: 1, midiBase: 33 }, // 3현
+      { name: "D", octave: 2, midiBase: 38 }, // 2현
+      { name: "G", octave: 2, midiBase: 43 }, // 1현
+    ],
+  },
+  {
+    name: "6현 - Drop A (AEADGC)",
+    strings: [
+      { name: "A", octave: 0, midiBase: 21 }, // 6현 (Drop A)
+      { name: "E", octave: 1, midiBase: 28 }, // 5현
+      { name: "A", octave: 1, midiBase: 33 }, // 4현
+      { name: "D", octave: 2, midiBase: 38 }, // 3현
+      { name: "G", octave: 2, midiBase: 43 }, // 2현
+      { name: "C", octave: 3, midiBase: 48 }, // 1현
+    ],
+  },
 ];
 
 // 크로매틱 음계
@@ -29,6 +140,28 @@ const CHROMATIC_SCALE = [
   "A#",
   "B",
 ];
+
+// 현재 튜닝 설정
+let currentTuning: BassTuning = PRESET_TUNINGS[0];
+
+// 튜닝 설정 함수
+export function setTuning(tuning: BassTuning): void {
+  currentTuning = tuning;
+}
+
+// 현재 튜닝 가져오기
+export function getCurrentTuning(): BassTuning {
+  return currentTuning;
+}
+
+// 음표 이름을 MIDI 번호로 변환
+export function noteNameToMidi(noteName: string, octave: number): number {
+  const noteIndex = CHROMATIC_SCALE.indexOf(noteName);
+  if (noteIndex === -1) {
+    throw new Error(`Invalid note name: ${noteName}`);
+  }
+  return (octave + 1) * 12 + noteIndex;
+}
 
 // MIDI 번호를 음표로 변환 (베이스 악보 8vb 관습에 따라 1옥타브 위로 표기)
 function midiToNote(midiNumber: number): BassNote {
@@ -50,13 +183,17 @@ function midiToNote(midiNumber: number): BassNote {
   }
 }
 
-// 4현 베이스에서 연주 가능한 모든 음표 생성 (0-12프렛)
-export function generateAllBassNotes(): BassNote[] {
+// 베이스에서 연주 가능한 모든 음표 생성
+export function generateAllBassNotes(
+  tuning?: BassTuning,
+  maxFret: number = 12
+): BassNote[] {
   const allNotes: BassNote[] = [];
+  const useTuning = tuning || currentTuning;
 
-  BASS_STRINGS.forEach((string) => {
-    // 각 현에서 0프렛부터 12프렛까지
-    for (let fret = 0; fret <= 12; fret++) {
+  useTuning.strings.forEach((string) => {
+    // 각 현에서 0프렛부터 지정된 프렛까지
+    for (let fret = 0; fret <= maxFret; fret++) {
       const midiNumber = string.midiBase + fret;
       const note = midiToNote(midiNumber);
       allNotes.push(note);
@@ -67,10 +204,21 @@ export function generateAllBassNotes(): BassNote[] {
 }
 
 // 랜덤 음표 생성
-export function generateRandomBassNotes(count: number): BassNote[] {
-  const allNotes = generateAllBassNotes();
-  const shuffled = [...allNotes].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
+export function generateRandomBassNotes(
+  count: number,
+  tuning?: BassTuning,
+  maxFret: number = 12
+): BassNote[] {
+  const allNotes = generateAllBassNotes(tuning, maxFret);
+  const result: BassNote[] = [];
+
+  // 요청된 개수만큼 음표 생성 (중복 허용)
+  for (let i = 0; i < count; i++) {
+    const randomIndex = Math.floor(Math.random() * allNotes.length);
+    result.push(allNotes[randomIndex]);
+  }
+
+  return result;
 }
 
 // 음이름을 문자열로 변환 (라벨은 실제 소리로 표시)
@@ -86,7 +234,10 @@ function noteToString(note: BassNote): string {
 }
 
 // MusicXML 생성
-export function generateMusicXML(notes: BassNote[]): string {
+export function generateMusicXML(
+  notes: BassNote[],
+  showNoteNames: boolean = true
+): string {
   const notesPerMeasure = 4;
   const totalMeasures = Math.ceil(notes.length / notesPerMeasure);
 
@@ -140,11 +291,15 @@ export function generateMusicXML(notes: BassNote[]): string {
           <octave>${note.octave}</octave>
         </pitch>
         <duration>1</duration>
-        <type>quarter</type>
+        <type>quarter</type>`;
+
+      measureXML += `
         <lyric number="1">
           <syllabic>single</syllabic>
-          <text>${noteToString(note)}</text>
-        </lyric>
+          <text>${showNoteNames ? noteToString(note) : "　"}</text>
+        </lyric>`;
+
+      measureXML += `
       </note>`;
     });
 

@@ -28,6 +28,13 @@ const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
     }
   };
 
+  // musicXmlContent가 변경될 때 악보 다시 로드
+  useEffect(() => {
+    if (osmdRef.current && musicXmlContent) {
+      loadAndRenderScore(osmdRef.current);
+    }
+  }, [musicXmlContent]);
+
   // 커서 위치 업데이트 효과
   useEffect(() => {
     if (osmdRef.current && osmdRef.current.Sheet) {
