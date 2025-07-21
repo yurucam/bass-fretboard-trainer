@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import SheetMusicViewer from "./SheetMusicViewer";
 import TuningSettings from "./TuningSettings";
 import KeySignatureSettings from "./KeySignatureSettings";
+import { useAudioInput } from "./hooks/useAudioInput";
 import {
   generateRandomBassNotes,
   generateMusicXML,
@@ -27,6 +28,8 @@ function App() {
   const [showKeySignatureSettings, setShowKeySignatureSettings] =
     useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isTrainingActive, setIsTrainingActive] = useState(false);
+  const [score, setScore] = useState(0);
 
   // localStorage에서 설정 불러오기
   const [currentTuning, setCurrentTuning] = useState<BassTuning>(() => {
@@ -80,6 +83,47 @@ function App() {
     return generateMusicXML(randomNotes, showNoteNames, currentKeySignature);
   }, [randomNotes, showNoteNames, currentKeySignature]);
 
+  // 현재 커서 위치의 음표 가져오기
+  const currentTargetNote = useMemo(() => {
+    if (cursorPosition < randomNotes.length) {
+      return randomNotes[cursorPosition];
+    }
+    return null;
+  }, [randomNotes, cursorPosition]);
+
+  // 오디오 입력 훅 설정
+  const audioInput = useAudioInput({
+    tuning: currentTuning,
+    maxFret: maxFret,
+    onNoteDetected: (detectedNote) => {
+      if (!isTrainingActive || !currentTargetNote) return;
+
+      // 현재 커서 위치의 음과 감지된 음이 일치하는지 확인
+      const targetNoteString =
+        currentTargetNote.step +
+        (currentTargetNote.alter === 1
+          ? "#"
+          : currentTargetNote.alter === -1
+          ? "♭"
+          : "") +
+        (currentTargetNote.octave - 1); // 베이스 악보는 1옥타브 위로 표기
+
+      if (detectedNote.note === targetNoteString) {
+        // 음이 일치하면 점수 증가 및 다음 음표로 진행
+        setScore((prev) => prev + 1);
+
+        if (cursorPosition < randomNotes.length - 1) {
+          // 다음 음표로 이동
+          setCursorPosition((prev) => prev + 1);
+        } else {
+          // 모든 음표를 완료했으면 새로운 악보 생성
+          handleNewExercise();
+        }
+      }
+    },
+    requiredConsecutiveDetections: 3,
+  });
+
   const handleTuningChange = (newTuning: BassTuning) => {
     setCurrentTuning(newTuning);
     setTuning(newTuning);
@@ -116,17 +160,32 @@ function App() {
   const handleNewExercise = () => {
     setRefreshKey((prev) => prev + 1);
     setCursorPosition(0);
+    setScore(0);
   };
 
+  // 오디오 훈련 시작
+  const handleStartTraining = async () => {
+    try {
+      await audioInput.initialize();
+      audioInput.startDetection();
+      setIsTrainingActive(true);
+      setCursorPosition(0);
+      setScore(0);
+    } catch (error) {
+      console.error("오디오 훈련 시작 실패:", error);
+    }
+  };
+
+  // 오디오 훈련 중지
+  const handleStopTraining = () => {
+    audioInput.stopDetection();
+    setIsTrainingActive(false);
+  };
+
+  // 키보드 단축키 (설정 관련만 유지)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        setCursorPosition((prev) => Math.max(0, prev - 1));
-      } else if (event.key === "ArrowRight") {
-        event.preventDefault();
-        setCursorPosition((prev) => prev + 1);
-      } else if (event.key === "t" || event.key === "T") {
+      if (event.key === "t" || event.key === "T") {
         event.preventDefault();
         setShowTuningSettings(true);
       } else if (event.key === "k" || event.key === "K") {
@@ -153,28 +212,46 @@ function App() {
         margin: 0,
         padding: 0,
         overflow: "hidden",
-        position: "relative",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      {/* 상단 컨트롤 바 */}
+      {/* 악보 영역 */}
       <div
         style={{
-          position: "fixed",
-          top: "10px",
-          left: "10px",
-          right: "10px",
-          zIndex: 100,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          backgroundColor: "rgba(255, 255, 255, 0.95)",
-          padding: "8px 16px",
-          borderRadius: "8px",
-          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-          backdropFilter: "blur(5px)",
+          flex: 1,
+          padding: "20px",
+          overflow: "hidden",
+          minHeight: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+        <SheetMusicViewer
+          musicXmlContent={musicXmlContent}
+          cursorPosition={cursorPosition}
+        />
+      </div>
+
+      {/* 하단 컨트롤 바 */}
+      <div
+        style={{
+          backgroundColor: "#ffffff",
+          padding: "12px 16px",
+          borderTop: "1px solid #e0e0e0",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+        }}
+      >
+        {/* 첫 번째 줄: 제목과 상태 정보 */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            flexWrap: "wrap",
+            minHeight: "24px",
+          }}
+        >
           <h3 style={{ margin: 0, color: "#333", fontSize: "18px" }}>
             베이스 프렛보드 트레이너
           </h3>
@@ -222,9 +299,62 @@ function App() {
           >
             음표명: {showNoteNames ? "ON" : "OFF"}
           </span>
+
+          {/* 점수 표시 */}
+          <span
+            style={{
+              color: "#333",
+              fontSize: "14px",
+              padding: "4px 8px",
+              backgroundColor: "#fff3cd",
+              borderRadius: "4px",
+              fontWeight: "bold",
+            }}
+          >
+            점수: {score}
+          </span>
+
+          {/* 실시간 음 감지 결과 */}
+          <span
+            style={{
+              color: audioInput.detectedNote ? "#28a745" : "#6c757d",
+              fontSize: "12px",
+              padding: "3px 6px",
+              backgroundColor: audioInput.detectedNote ? "#d4edda" : "#f8f9fa",
+              borderRadius: "4px",
+              minWidth: "80px",
+              textAlign: "center",
+            }}
+          >
+            감지: {audioInput.detectedNote?.note || "-"}
+          </span>
+
+          {/* 주파수 표시 */}
+          <span
+            style={{
+              color: "#666",
+              fontSize: "11px",
+              padding: "2px 4px",
+              backgroundColor: "#f8f9fa",
+              borderRadius: "3px",
+            }}
+          >
+            {audioInput.detectedFrequency
+              ? `${audioInput.detectedFrequency.toFixed(1)}Hz`
+              : "0Hz"}
+          </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        {/* 두 번째 줄: 컨트롤 버튼들 */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+          }}
+        >
           {/* 프렛 수 조절 */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <label style={{ fontSize: "12px", color: "#666" }}>프렛:</label>
@@ -260,6 +390,27 @@ function App() {
             }}
           >
             음표명 (L)
+          </button>
+
+          {/* 오디오 훈련 시작/중지 버튼 */}
+          <button
+            onClick={
+              isTrainingActive ? handleStopTraining : handleStartTraining
+            }
+            disabled={audioInput.error !== null}
+            style={{
+              padding: "6px 12px",
+              border: `2px solid ${isTrainingActive ? "#dc3545" : "#007bff"}`,
+              borderRadius: "6px",
+              backgroundColor: isTrainingActive ? "#dc3545" : "#007bff",
+              color: "white",
+              cursor: audioInput.error ? "not-allowed" : "pointer",
+              fontSize: "12px",
+              fontWeight: "bold",
+              opacity: audioInput.error ? 0.6 : 1,
+            }}
+          >
+            {isTrainingActive ? "중지" : "시작"}
           </button>
 
           <button
@@ -312,30 +463,30 @@ function App() {
         </div>
       </div>
 
-      {/* 키보드 단축키 안내 */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: "10px",
-          left: "10px",
-          backgroundColor: "rgba(0, 0, 0, 0.7)",
-          color: "white",
-          padding: "6px 10px",
-          borderRadius: "6px",
-          fontSize: "11px",
-          zIndex: 100,
-        }}
-      >
-        ← → : 이동 | T : 튜닝 설정 | K : 조표 설정 | N : 새 연습 | L : 음표명
-        토글
-      </div>
-
-      <div style={{ paddingTop: "70px" }}>
-        <SheetMusicViewer
-          musicXmlContent={musicXmlContent}
-          cursorPosition={cursorPosition}
-        />
-      </div>
+      {/* 오디오 에러 메시지 */}
+      {audioInput.error && (
+        <div
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor: "#f8d7da",
+            color: "#721c24",
+            padding: "12px 20px",
+            borderRadius: "8px",
+            border: "1px solid #f5c6cb",
+            zIndex: 200,
+            maxWidth: "500px",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          <strong>오디오 오류:</strong> {audioInput.error}
+          <br />
+          <small>마이크 권한을 확인하고 다시 시도해주세요.</small>
+        </div>
+      )}
 
       {/* 튜닝 설정 모달 */}
       {showTuningSettings && (
