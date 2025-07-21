@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import SheetMusicViewer from "./SheetMusicViewer";
 import TuningSettings from "./TuningSettings";
 import KeySignatureSettings from "./KeySignatureSettings";
@@ -78,6 +78,10 @@ function App() {
     );
   }, [currentTuning, maxFret, currentKeySignature, refreshKey]);
 
+  // 최신 randomNotes를 참조하기 위한 ref
+  const randomNotesRef = useRef(randomNotes);
+  randomNotesRef.current = randomNotes;
+
   // MusicXML 생성 - 음표명 표시 여부, 조표가 바뀔 때만 다시 생성
   const musicXmlContent = useMemo(() => {
     return generateMusicXML(randomNotes, showNoteNames, currentKeySignature);
@@ -87,8 +91,11 @@ function App() {
   const handleNoteDetected = useCallback(
     (detectedNote: { note: string }) => {
       setCursorPosition((currentPos) => {
+        // 최신 randomNotes를 참조
+        const currentRandomNotes = randomNotesRef.current;
+
         // 현재 커서 위치의 음표 가져오기
-        const currentNote = randomNotes[currentPos];
+        const currentNote = currentRandomNotes[currentPos];
         if (!currentNote) return currentPos;
 
         // 타겟 음표 문자열 생성
@@ -106,7 +113,7 @@ function App() {
           // 음이 일치하면 점수 증가
           setScore((prev) => prev + 1);
 
-          if (currentPos < randomNotes.length - 1) {
+          if (currentPos < currentRandomNotes.length - 1) {
             // 다음 음표로 이동
             return currentPos + 1;
           } else {
@@ -120,7 +127,7 @@ function App() {
         return currentPos;
       });
     },
-    [randomNotes]
+    [] // 의존성 배열을 비워서 콜백이 재생성되지 않도록 함
   );
 
   // 오디오 입력 훅 설정
