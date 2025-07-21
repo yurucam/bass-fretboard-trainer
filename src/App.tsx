@@ -1,12 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
 import SheetMusicViewer from "./SheetMusicViewer";
 import TuningSettings from "./TuningSettings";
+import KeySignatureSettings from "./KeySignatureSettings";
 import {
   generateRandomBassNotes,
   generateMusicXML,
   type BassTuning,
+  type KeySignature,
   PRESET_TUNINGS,
+  PRESET_KEY_SIGNATURES,
   setTuning,
+  setKeySignature,
 } from "./bassNoteGenerator";
 
 // localStorage 키들
@@ -14,11 +18,14 @@ const STORAGE_KEYS = {
   TUNING: "bass-trainer-tuning",
   MAX_FRET: "bass-trainer-max-fret",
   SHOW_NOTE_NAMES: "bass-trainer-show-note-names",
+  KEY_SIGNATURE: "bass-trainer-key-signature",
 };
 
 function App() {
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showTuningSettings, setShowTuningSettings] = useState(false);
+  const [showKeySignatureSettings, setShowKeySignatureSettings] =
+    useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // localStorage에서 설정 불러오기
@@ -44,15 +51,34 @@ function App() {
     return saved ? JSON.parse(saved) : true;
   });
 
-  // 랜덤 음표들 생성 (8마디 = 32개 음표) - 튜닝, 프렛 수, refreshKey가 바뀔 때만 새로 생성
-  const randomNotes = useMemo(() => {
-    return generateRandomBassNotes(32, currentTuning, maxFret);
-  }, [currentTuning, maxFret, refreshKey]);
+  const [currentKeySignature, setCurrentKeySignature] = useState<KeySignature>(
+    () => {
+      const saved = localStorage.getItem(STORAGE_KEYS.KEY_SIGNATURE);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return PRESET_KEY_SIGNATURES[0];
+        }
+      }
+      return PRESET_KEY_SIGNATURES[0];
+    }
+  );
 
-  // MusicXML 생성 - 음표명 표시 여부가 바뀔 때만 다시 생성
+  // 랜덤 음표들 생성 (8마디 = 32개 음표) - 튜닝, 프렛 수, 조표, refreshKey가 바뀔 때만 새로 생성
+  const randomNotes = useMemo(() => {
+    return generateRandomBassNotes(
+      32,
+      currentTuning,
+      maxFret,
+      currentKeySignature
+    );
+  }, [currentTuning, maxFret, currentKeySignature, refreshKey]);
+
+  // MusicXML 생성 - 음표명 표시 여부, 조표가 바뀔 때만 다시 생성
   const musicXmlContent = useMemo(() => {
-    return generateMusicXML(randomNotes, showNoteNames);
-  }, [randomNotes, showNoteNames]);
+    return generateMusicXML(randomNotes, showNoteNames, currentKeySignature);
+  }, [randomNotes, showNoteNames, currentKeySignature]);
 
   const handleTuningChange = (newTuning: BassTuning) => {
     setCurrentTuning(newTuning);
@@ -77,6 +103,16 @@ function App() {
     // refreshKey를 변경하지 않음 - 같은 악보에서 음표명만 토글
   };
 
+  const handleKeySignatureChange = (newKeySignature: KeySignature) => {
+    setCurrentKeySignature(newKeySignature);
+    setKeySignature(newKeySignature);
+    localStorage.setItem(
+      STORAGE_KEYS.KEY_SIGNATURE,
+      JSON.stringify(newKeySignature)
+    );
+    setRefreshKey((prev) => prev + 1); // 새로운 음표 생성을 위해 리프레시
+  };
+
   const handleNewExercise = () => {
     setRefreshKey((prev) => prev + 1);
     setCursorPosition(0);
@@ -93,6 +129,9 @@ function App() {
       } else if (event.key === "t" || event.key === "T") {
         event.preventDefault();
         setShowTuningSettings(true);
+      } else if (event.key === "k" || event.key === "K") {
+        event.preventDefault();
+        setShowKeySignatureSettings(true);
       } else if (event.key === "n" || event.key === "N") {
         event.preventDefault();
         handleNewExercise();
@@ -160,6 +199,17 @@ function App() {
             }}
           >
             {maxFret}프렛
+          </span>
+          <span
+            style={{
+              color: "#666",
+              fontSize: "12px",
+              padding: "3px 6px",
+              backgroundColor: "#f0e8ff",
+              borderRadius: "4px",
+            }}
+          >
+            {currentKeySignature.name.split(" / ")[0]}
           </span>
           <span
             style={{
@@ -243,6 +293,22 @@ function App() {
           >
             튜닝 설정 (T)
           </button>
+
+          <button
+            onClick={() => setShowKeySignatureSettings(true)}
+            style={{
+              padding: "6px 12px",
+              border: "2px solid #6f42c1",
+              borderRadius: "6px",
+              backgroundColor: "#6f42c1",
+              color: "white",
+              cursor: "pointer",
+              fontSize: "12px",
+              fontWeight: "bold",
+            }}
+          >
+            조표 설정 (K)
+          </button>
         </div>
       </div>
 
@@ -260,7 +326,8 @@ function App() {
           zIndex: 100,
         }}
       >
-        ← → : 이동 | T : 튜닝 설정 | N : 새 연습 | L : 음표명 토글
+        ← → : 이동 | T : 튜닝 설정 | K : 조표 설정 | N : 새 연습 | L : 음표명
+        토글
       </div>
 
       <div style={{ paddingTop: "70px" }}>
@@ -276,6 +343,15 @@ function App() {
           currentTuning={currentTuning}
           onTuningChange={handleTuningChange}
           onClose={() => setShowTuningSettings(false)}
+        />
+      )}
+
+      {/* 조표 설정 모달 */}
+      {showKeySignatureSettings && (
+        <KeySignatureSettings
+          currentKeySignature={currentKeySignature}
+          onKeySignatureChange={handleKeySignatureChange}
+          onClose={() => setShowKeySignatureSettings(false)}
         />
       )}
     </div>

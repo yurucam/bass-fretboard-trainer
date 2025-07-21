@@ -18,6 +18,81 @@ export interface BassTuning {
   strings: BassString[];
 }
 
+// 조표 설정
+export interface KeySignature {
+  name: string;
+  fifths: number; // -7 ~ +7 (플랫 개수는 음수, 샤프 개수는 양수)
+  sharps: string[]; // 샤프가 붙는 음표들
+  flats: string[]; // 플랫이 붙는 음표들
+}
+
+// 미리 정의된 조표들
+export const PRESET_KEY_SIGNATURES: KeySignature[] = [
+  // 플랫 조표들
+  { name: "C Major / A minor", fifths: 0, sharps: [], flats: [] },
+  { name: "F Major / D minor", fifths: -1, sharps: [], flats: ["B"] },
+  { name: "B♭ Major / G minor", fifths: -2, sharps: [], flats: ["B", "E"] },
+  {
+    name: "E♭ Major / C minor",
+    fifths: -3,
+    sharps: [],
+    flats: ["B", "E", "A"],
+  },
+  {
+    name: "A♭ Major / F minor",
+    fifths: -4,
+    sharps: [],
+    flats: ["B", "E", "A", "D"],
+  },
+  {
+    name: "D♭ Major / B♭ minor",
+    fifths: -5,
+    sharps: [],
+    flats: ["B", "E", "A", "D", "G"],
+  },
+  {
+    name: "G♭ Major / E♭ minor",
+    fifths: -6,
+    sharps: [],
+    flats: ["B", "E", "A", "D", "G", "C"],
+  },
+  {
+    name: "C♭ Major / A♭ minor",
+    fifths: -7,
+    sharps: [],
+    flats: ["B", "E", "A", "D", "G", "C", "F"],
+  },
+
+  // 샤프 조표들
+  { name: "G Major / E minor", fifths: 1, sharps: ["F"], flats: [] },
+  { name: "D Major / B minor", fifths: 2, sharps: ["F", "C"], flats: [] },
+  { name: "A Major / F# minor", fifths: 3, sharps: ["F", "C", "G"], flats: [] },
+  {
+    name: "E Major / C# minor",
+    fifths: 4,
+    sharps: ["F", "C", "G", "D"],
+    flats: [],
+  },
+  {
+    name: "B Major / G# minor",
+    fifths: 5,
+    sharps: ["F", "C", "G", "D", "A"],
+    flats: [],
+  },
+  {
+    name: "F# Major / D# minor",
+    fifths: 6,
+    sharps: ["F", "C", "G", "D", "A", "E"],
+    flats: [],
+  },
+  {
+    name: "C# Major / A# minor",
+    fifths: 7,
+    sharps: ["F", "C", "G", "D", "A", "E", "B"],
+    flats: [],
+  },
+];
+
 // 미리 정의된 튜닝들
 export const PRESET_TUNINGS: BassTuning[] = [
   // 4현 베이스
@@ -144,6 +219,9 @@ const CHROMATIC_SCALE = [
 // 현재 튜닝 설정
 let currentTuning: BassTuning = PRESET_TUNINGS[0];
 
+// 현재 조표 설정
+let currentKeySignature: KeySignature = PRESET_KEY_SIGNATURES[0];
+
 // 튜닝 설정 함수
 export function setTuning(tuning: BassTuning): void {
   currentTuning = tuning;
@@ -152,6 +230,16 @@ export function setTuning(tuning: BassTuning): void {
 // 현재 튜닝 가져오기
 export function getCurrentTuning(): BassTuning {
   return currentTuning;
+}
+
+// 조표 설정 함수
+export function setKeySignature(keySignature: KeySignature): void {
+  currentKeySignature = keySignature;
+}
+
+// 현재 조표 가져오기
+export function getCurrentKeySignature(): KeySignature {
+  return currentKeySignature;
 }
 
 // 음표 이름을 MIDI 번호로 변환
@@ -163,39 +251,74 @@ export function noteNameToMidi(noteName: string, octave: number): number {
   return (octave + 1) * 12 + noteIndex;
 }
 
+// 조표에 따라 음표를 조정하는 함수
+function applyKeySignature(
+  note: BassNote,
+  keySignature: KeySignature
+): BassNote {
+  const adjustedNote = { ...note };
+
+  // 이미 임시표가 있는 음표는 조표 적용하지 않음 (크로매틱 음표)
+  if (note.alter !== undefined) {
+    return adjustedNote;
+  }
+
+  // 샤프 조표 적용
+  if (keySignature.sharps.includes(note.step)) {
+    adjustedNote.alter = 1;
+  }
+
+  // 플랫 조표 적용
+  if (keySignature.flats.includes(note.step)) {
+    adjustedNote.alter = -1;
+  }
+
+  return adjustedNote;
+}
+
 // MIDI 번호를 음표로 변환 (베이스 악보 8vb 관습에 따라 1옥타브 위로 표기)
-function midiToNote(midiNumber: number): BassNote {
+function midiToNote(midiNumber: number, keySignature?: KeySignature): BassNote {
   const noteIndex = midiNumber % 12;
   const octave = Math.floor(midiNumber / 12) - 1 + 1; // 베이스 악보 관습: 1옥타브 위로 표기
   const noteName = CHROMATIC_SCALE[noteIndex];
 
+  let baseNote: BassNote;
   if (noteName.includes("#")) {
-    return {
+    baseNote = {
       step: noteName[0],
       octave: octave,
       alter: 1,
     };
   } else {
-    return {
+    baseNote = {
       step: noteName,
       octave: octave,
     };
   }
+
+  // 조표가 제공된 경우 적용
+  if (keySignature) {
+    return applyKeySignature(baseNote, keySignature);
+  }
+
+  return baseNote;
 }
 
 // 베이스에서 연주 가능한 모든 음표 생성
 export function generateAllBassNotes(
   tuning?: BassTuning,
-  maxFret: number = 12
+  maxFret: number = 12,
+  keySignature?: KeySignature
 ): BassNote[] {
   const allNotes: BassNote[] = [];
   const useTuning = tuning || currentTuning;
+  const useKeySignature = keySignature || currentKeySignature;
 
   useTuning.strings.forEach((string) => {
     // 각 현에서 0프렛부터 지정된 프렛까지
     for (let fret = 0; fret <= maxFret; fret++) {
       const midiNumber = string.midiBase + fret;
-      const note = midiToNote(midiNumber);
+      const note = midiToNote(midiNumber, useKeySignature);
       allNotes.push(note);
     }
   });
@@ -207,9 +330,10 @@ export function generateAllBassNotes(
 export function generateRandomBassNotes(
   count: number,
   tuning?: BassTuning,
-  maxFret: number = 12
+  maxFret: number = 12,
+  keySignature?: KeySignature
 ): BassNote[] {
-  const allNotes = generateAllBassNotes(tuning, maxFret);
+  const allNotes = generateAllBassNotes(tuning, maxFret, keySignature);
   const result: BassNote[] = [];
 
   // 요청된 개수만큼 음표 생성 (중복 허용)
@@ -236,8 +360,10 @@ function noteToString(note: BassNote): string {
 // MusicXML 생성
 export function generateMusicXML(
   notes: BassNote[],
-  showNoteNames: boolean = true
+  showNoteNames: boolean = true,
+  keySignature?: KeySignature
 ): string {
+  const useKeySignature = keySignature || currentKeySignature;
   const notesPerMeasure = 4;
   const totalMeasures = Math.ceil(notes.length / notesPerMeasure);
 
@@ -256,7 +382,7 @@ export function generateMusicXML(
       <attributes>
         <divisions>1</divisions>
         <key>
-          <fifths>0</fifths>
+          <fifths>${useKeySignature.fifths}</fifths>
         </key>
         <time>
           <beats>4</beats>
