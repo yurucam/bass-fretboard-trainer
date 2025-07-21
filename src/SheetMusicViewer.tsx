@@ -12,17 +12,34 @@ const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
 }) => {
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
 
-  const loadAndRenderScore = async (osmd: OpenSheetMusicDisplay) => {
+  const loadAndRenderScore = async (
+    osmd: OpenSheetMusicDisplay,
+    preserveCursorPosition: boolean = false
+  ) => {
     try {
+      // 현재 커서 위치 저장 (preserveCursorPosition이 true일 때만)
+      let savedCursorPosition = 0;
+      if (preserveCursorPosition && osmd.cursor && osmd.Sheet) {
+        // 현재 커서 위치를 계산
+        savedCursorPosition = cursorPosition;
+      }
+
       // MusicXML 문자열을 직접 로드
       await osmd.load(musicXmlContent);
 
       // 악보 렌더링
       osmd.render();
 
-      // 커서를 첫 번째 위치로 초기화
+      // 커서 설정
       osmd.cursor.show();
       osmd.cursor.reset();
+
+      // 저장된 커서 위치로 복원 (preserveCursorPosition이 true일 때만)
+      if (preserveCursorPosition && savedCursorPosition > 0) {
+        for (let i = 0; i < savedCursorPosition; i++) {
+          osmd.cursor.next();
+        }
+      }
     } catch (error) {
       console.error("악보 로드 중 오류 발생:", error);
     }
@@ -31,9 +48,10 @@ const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
   // musicXmlContent가 변경될 때 악보 다시 로드
   useEffect(() => {
     if (osmdRef.current && musicXmlContent) {
-      loadAndRenderScore(osmdRef.current);
+      // 커서 위치를 보존하면서 악보 다시 로드
+      loadAndRenderScore(osmdRef.current, true);
     }
-  }, [musicXmlContent]);
+  }, [musicXmlContent, cursorPosition]);
 
   // 커서 위치 업데이트 효과
   useEffect(() => {
@@ -71,8 +89,8 @@ const SheetMusicViewer: React.FC<SheetMusicViewerProps> = ({
       });
       osmdRef.current.EngravingRules.RenderXMeasuresPerLineAkaSystem = 4;
 
-      // 악보 로드 및 렌더링
-      loadAndRenderScore(osmdRef.current);
+      // 악보 로드 및 렌더링 (초기 로드이므로 커서 위치 보존하지 않음)
+      loadAndRenderScore(osmdRef.current, false);
     }
   };
 
