@@ -96,7 +96,7 @@ function App() {
     tuning: currentTuning,
     maxFret: maxFret,
     onNoteDetected: (detectedNote) => {
-      if (!isTrainingActive || !currentTargetNote) return;
+      if (!currentTargetNote) return;
 
       // 현재 커서 위치의 음과 감지된 음이 일치하는지 확인
       const targetNoteString =
