@@ -131,7 +131,9 @@ export function useAudioInput({
         // 필요한 연속 감지 횟수에 도달하면 콜백 호출
         if (consecutiveCountRef.current >= requiredConsecutiveDetections) {
           onNoteDetected?.(detectedNote);
-          consecutiveCountRef.current = 0; // 중복 호출 방지
+          // 같은 음이 계속 감지되어도 콜백이 반복 호출되지 않도록
+          // 카운터를 리셋하지 않고 높은 값으로 설정
+          consecutiveCountRef.current = 999;
         }
 
         // 최근 감지된 음표 히스토리 관리 (안정화용)

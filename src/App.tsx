@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import SheetMusicViewer from "./SheetMusicViewer";
 import TuningSettings from "./TuningSettings";
 import KeySignatureSettings from "./KeySignatureSettings";
@@ -83,44 +83,51 @@ function App() {
     return generateMusicXML(randomNotes, showNoteNames, currentKeySignature);
   }, [randomNotes, showNoteNames, currentKeySignature]);
 
-  // 현재 커서 위치의 음표 가져오기
-  const currentTargetNote = useMemo(() => {
-    if (cursorPosition < randomNotes.length) {
-      return randomNotes[cursorPosition];
-    }
-    return null;
-  }, [randomNotes, cursorPosition]);
+  // 음표 감지 처리 함수
+  const handleNoteDetected = useCallback(
+    (detectedNote: { note: string }) => {
+      setCursorPosition((currentPos) => {
+        // 현재 커서 위치의 음표 가져오기
+        const currentNote = randomNotes[currentPos];
+        if (!currentNote) return currentPos;
+
+        // 타겟 음표 문자열 생성
+        const currentTargetNoteString =
+          currentNote.step +
+          (currentNote.alter === 1
+            ? "#"
+            : currentNote.alter === -1
+            ? "♭"
+            : "") +
+          (currentNote.octave - 1); // 베이스 악보는 1옥타브 위로 표기
+
+        // 현재 커서 위치의 음과 감지된 음이 일치하는지 확인
+        if (detectedNote.note === currentTargetNoteString) {
+          // 음이 일치하면 점수 증가
+          setScore((prev) => prev + 1);
+
+          if (currentPos < randomNotes.length - 1) {
+            // 다음 음표로 이동
+            return currentPos + 1;
+          } else {
+            // 모든 음표를 완료했으면 새로운 악보 생성
+            setRefreshKey((prev) => prev + 1);
+            setScore(0);
+            return 0;
+          }
+        }
+
+        return currentPos;
+      });
+    },
+    [randomNotes]
+  );
 
   // 오디오 입력 훅 설정
   const audioInput = useAudioInput({
     tuning: currentTuning,
     maxFret: maxFret,
-    onNoteDetected: (detectedNote) => {
-      if (!currentTargetNote) return;
-
-      // 현재 커서 위치의 음과 감지된 음이 일치하는지 확인
-      const targetNoteString =
-        currentTargetNote.step +
-        (currentTargetNote.alter === 1
-          ? "#"
-          : currentTargetNote.alter === -1
-          ? "♭"
-          : "") +
-        (currentTargetNote.octave - 1); // 베이스 악보는 1옥타브 위로 표기
-
-      if (detectedNote.note === targetNoteString) {
-        // 음이 일치하면 점수 증가 및 다음 음표로 진행
-        setScore((prev) => prev + 1);
-
-        if (cursorPosition < randomNotes.length - 1) {
-          // 다음 음표로 이동
-          setCursorPosition((prev) => prev + 1);
-        } else {
-          // 모든 음표를 완료했으면 새로운 악보 생성
-          handleNewExercise();
-        }
-      }
-    },
+    onNoteDetected: handleNoteDetected,
     requiredConsecutiveDetections: 3,
   });
 
