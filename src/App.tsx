@@ -266,9 +266,6 @@ function App() {
             minHeight: "24px",
           }}
         >
-          <h3 style={{ margin: 0, color: "#333", fontSize: "18px" }}>
-            베이스 프렛보드 트레이너
-          </h3>
           <span
             style={{
               color: "#666",

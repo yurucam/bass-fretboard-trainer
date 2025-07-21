@@ -326,7 +326,7 @@ export function generateAllBassNotes(
   return allNotes;
 }
 
-// 랜덤 음표 생성
+// 랜덤 음표 생성 (같은 음이 연속으로 나오지 않도록)
 export function generateRandomBassNotes(
   count: number,
   tuning?: BassTuning,
@@ -336,13 +336,40 @@ export function generateRandomBassNotes(
   const allNotes = generateAllBassNotes(tuning, maxFret, keySignature);
   const result: BassNote[] = [];
 
-  // 요청된 개수만큼 음표 생성 (중복 허용)
-  for (let i = 0; i < count; i++) {
-    const randomIndex = Math.floor(Math.random() * allNotes.length);
-    result.push(allNotes[randomIndex]);
+  if (count === 0) {
+    return result;
+  }
+
+  // 첫 번째 음표는 무작위로 선택
+  let randomIndex = Math.floor(Math.random() * allNotes.length);
+  result.push(allNotes[randomIndex]);
+
+  // 나머지 음표들은 이전 음표와 다른 음표만 선택
+  for (let i = 1; i < count; i++) {
+    const previousNote = result[i - 1];
+    let availableNotes = allNotes.filter(
+      (note) => !isSameNote(note, previousNote)
+    );
+
+    // 만약 사용 가능한 음표가 없다면 (이론적으로 불가능하지만 안전장치)
+    if (availableNotes.length === 0) {
+      availableNotes = allNotes;
+    }
+
+    randomIndex = Math.floor(Math.random() * availableNotes.length);
+    result.push(availableNotes[randomIndex]);
   }
 
   return result;
+}
+
+// 두 음표가 같은 음인지 비교하는 함수
+function isSameNote(note1: BassNote, note2: BassNote): boolean {
+  return (
+    note1.step === note2.step &&
+    note1.octave === note2.octave &&
+    (note1.alter || 0) === (note2.alter || 0)
+  );
 }
 
 // 음이름을 문자열로 변환 (라벨은 실제 소리로 표시)
