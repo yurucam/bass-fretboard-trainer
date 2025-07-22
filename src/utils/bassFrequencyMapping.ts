@@ -46,12 +46,13 @@ function noteToFrequency(noteName: string, octave: number): number {
 // 튜닝 설정에 따라 베이스 음표 주파수 매핑 생성
 export function generateBassFrequencyMapping(
   tuning: BassTuning,
-  maxFret: number = 12
+  maxFret: number = 12,
+  minFret: number = 0
 ): BassNoteFrequency[] {
   const bassNotes: BassNoteFrequency[] = [];
 
   tuning.strings.forEach((string, stringIndex) => {
-    for (let fret = 0; fret <= maxFret; fret++) {
+    for (let fret = minFret; fret <= maxFret; fret++) {
       // MIDI 번호 계산
       const midiNumber = string.midiBase + fret;
 

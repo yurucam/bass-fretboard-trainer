@@ -20,6 +20,7 @@ export interface AudioInputState {
 export interface UseAudioInputOptions {
   tuning: BassTuning;
   maxFret: number;
+  minFret?: number;
   onNoteDetected?: (note: BassNoteFrequency) => void;
   requiredConsecutiveDetections?: number;
 }
@@ -27,6 +28,7 @@ export interface UseAudioInputOptions {
 export function useAudioInput({
   tuning,
   maxFret,
+  minFret = 0,
   onNoteDetected,
   requiredConsecutiveDetections = 3,
 }: UseAudioInputOptions) {
@@ -50,14 +52,18 @@ export function useAudioInput({
 
   // 튜닝이 변경될 때마다 베이스 음표 매핑 업데이트
   useEffect(() => {
-    bassNotesRef.current = generateBassFrequencyMapping(tuning, maxFret);
+    bassNotesRef.current = generateBassFrequencyMapping(
+      tuning,
+      maxFret,
+      minFret
+    );
     frequencyRangesRef.current = generateFrequencyRanges(bassNotesRef.current);
     console.log(
       "베이스 음표 매핑 업데이트됨:",
       bassNotesRef.current.length,
       "개 음표"
     );
-  }, [tuning, maxFret]);
+  }, [tuning, maxFret, minFret]);
 
   // 오디오 컨텍스트 초기화
   const initialize = useCallback(async () => {

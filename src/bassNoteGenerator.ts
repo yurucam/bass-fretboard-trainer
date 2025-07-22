@@ -308,15 +308,16 @@ function midiToNote(midiNumber: number, keySignature?: KeySignature): BassNote {
 export function generateAllBassNotes(
   tuning?: BassTuning,
   maxFret: number = 12,
-  keySignature?: KeySignature
+  keySignature?: KeySignature,
+  minFret: number = 0
 ): BassNote[] {
   const allNotes: BassNote[] = [];
   const useTuning = tuning || currentTuning;
   const useKeySignature = keySignature || currentKeySignature;
 
   useTuning.strings.forEach((string) => {
-    // 각 현에서 0프렛부터 지정된 프렛까지
-    for (let fret = 0; fret <= maxFret; fret++) {
+    // 각 현에서 minFret부터 maxFret까지
+    for (let fret = minFret; fret <= maxFret; fret++) {
       const midiNumber = string.midiBase + fret;
       const note = midiToNote(midiNumber, useKeySignature);
       allNotes.push(note);
@@ -331,9 +332,10 @@ export function generateRandomBassNotes(
   count: number,
   tuning?: BassTuning,
   maxFret: number = 12,
-  keySignature?: KeySignature
+  keySignature?: KeySignature,
+  minFret: number = 0
 ): BassNote[] {
-  const allNotes = generateAllBassNotes(tuning, maxFret, keySignature);
+  const allNotes = generateAllBassNotes(tuning, maxFret, keySignature, minFret);
   const result: BassNote[] = [];
 
   if (count === 0) {

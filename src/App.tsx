@@ -17,6 +17,7 @@ import {
 // localStorage 키들
 const STORAGE_KEYS = {
   TUNING: "bass-trainer-tuning",
+  MIN_FRET: "bass-trainer-min-fret",
   MAX_FRET: "bass-trainer-max-fret",
   SHOW_NOTE_NAMES: "bass-trainer-show-note-names",
   KEY_SIGNATURE: "bass-trainer-key-signature",
@@ -42,6 +43,11 @@ function App() {
       }
     }
     return PRESET_TUNINGS[0];
+  });
+
+  const [minFret, setMinFret] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.MIN_FRET);
+    return saved ? parseInt(saved) : 0;
   });
 
   const [maxFret, setMaxFret] = useState(() => {
@@ -74,9 +80,10 @@ function App() {
       32,
       currentTuning,
       maxFret,
-      currentKeySignature
+      currentKeySignature,
+      minFret
     );
-  }, [currentTuning, maxFret, currentKeySignature, refreshKey]);
+  }, [currentTuning, maxFret, minFret, currentKeySignature, refreshKey]);
 
   // 최신 randomNotes를 참조하기 위한 ref
   const randomNotesRef = useRef(randomNotes);
@@ -134,6 +141,7 @@ function App() {
   const audioInput = useAudioInput({
     tuning: currentTuning,
     maxFret: maxFret,
+    minFret: minFret,
     onNoteDetected: handleNoteDetected,
     requiredConsecutiveDetections: 3,
   });
@@ -145,7 +153,21 @@ function App() {
     setRefreshKey((prev) => prev + 1); // 새로운 음표 생성을 위해 리프레시
   };
 
+  const handleMinFretChange = (newMinFret: number) => {
+    // 시작 프렛이 끝 프렛보다 작거나 같아야 함
+    if (newMinFret > maxFret) {
+      return; // 유효하지 않은 값이면 변경하지 않음
+    }
+    setMinFret(newMinFret);
+    localStorage.setItem(STORAGE_KEYS.MIN_FRET, newMinFret.toString());
+    setRefreshKey((prev) => prev + 1); // 새로운 음표 생성을 위해 리프레시
+  };
+
   const handleMaxFretChange = (newMaxFret: number) => {
+    // 끝 프렛이 시작 프렛보다 크거나 같아야 함
+    if (newMaxFret < minFret) {
+      return; // 유효하지 않은 값이면 변경하지 않음
+    }
     setMaxFret(newMaxFret);
     localStorage.setItem(STORAGE_KEYS.MAX_FRET, newMaxFret.toString());
     setRefreshKey((prev) => prev + 1); // 새로운 음표 생성을 위해 리프레시
@@ -286,7 +308,7 @@ function App() {
               borderRadius: "4px",
             }}
           >
-            {maxFret}프렛
+            {minFret}-{maxFret}프렛
           </span>
           <span
             style={{
@@ -366,9 +388,31 @@ function App() {
             justifyContent: "flex-end",
           }}
         >
-          {/* 프렛 수 조절 */}
+          {/* 프렛 범위 조절 */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <label style={{ fontSize: "12px", color: "#666" }}>프렛:</label>
+            <label style={{ fontSize: "12px", color: "#666" }}>
+              시작 프렛:
+            </label>
+            <select
+              value={minFret}
+              onChange={(e) => handleMinFretChange(parseInt(e.target.value))}
+              style={{
+                padding: "4px 8px",
+                border: "1px solid #ccc",
+                borderRadius: "4px",
+                fontSize: "12px",
+              }}
+            >
+              {Array.from({ length: 25 }, (_, i) => i).map((fret) => (
+                <option key={fret} value={fret}>
+                  {fret}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <label style={{ fontSize: "12px", color: "#666" }}>끝 프렛:</label>
             <select
               value={maxFret}
               onChange={(e) => handleMaxFretChange(parseInt(e.target.value))}
@@ -379,7 +423,7 @@ function App() {
                 fontSize: "12px",
               }}
             >
-              {Array.from({ length: 20 }, (_, i) => i + 5).map((fret) => (
+              {Array.from({ length: 25 }, (_, i) => i).map((fret) => (
                 <option key={fret} value={fret}>
                   {fret}
                 </option>
