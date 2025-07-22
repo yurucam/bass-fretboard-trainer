@@ -31,7 +31,6 @@ function App() {
     useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isTrainingActive, setIsTrainingActive] = useState(false);
-  const [score, setScore] = useState(0);
 
   // localStorage에서 설정 불러오기
   const [currentTuning, setCurrentTuning] = useState<BassTuning>(() => {
@@ -118,9 +117,6 @@ function App() {
 
         // 현재 커서 위치의 음과 감지된 음이 일치하는지 확인
         if (detectedNote.note === currentTargetNoteString) {
-          // 음이 일치하면 점수 증가
-          setScore((prev) => prev + 1);
-
           if (currentPos < currentRandomNotes.length - 1) {
             // 다음 음표로 이동
             return currentPos + 1;
@@ -131,7 +127,6 @@ function App() {
               spread: 200,
             });
             setRefreshKey((prev) => prev + 1);
-            setScore(0);
             return 0;
           }
         }
@@ -201,7 +196,6 @@ function App() {
   const handleNewExercise = () => {
     setRefreshKey((prev) => prev + 1);
     setCursorPosition(0);
-    setScore(0);
   };
 
   // 오디오 훈련 시작
@@ -211,7 +205,6 @@ function App() {
       audioInput.startDetection();
       setIsTrainingActive(true);
       setCursorPosition(0);
-      setScore(0);
     } catch (error) {
       console.error("오디오 훈련 시작 실패:", error);
     }
@@ -336,20 +329,6 @@ function App() {
             }}
           >
             음표명: {showNoteNames ? "ON" : "OFF"}
-          </span>
-
-          {/* 점수 표시 */}
-          <span
-            style={{
-              color: "#333",
-              fontSize: "14px",
-              padding: "4px 8px",
-              backgroundColor: "#fff3cd",
-              borderRadius: "4px",
-              fontWeight: "bold",
-            }}
-          >
-            점수: {score}
           </span>
 
           {/* 실시간 음 감지 결과 */}
