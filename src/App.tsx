@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import confetti from "canvas-confetti";
 import SheetMusicViewer from "./SheetMusicViewer";
 import TuningSettings from "./TuningSettings";
 import KeySignatureSettings from "./KeySignatureSettings";
@@ -124,7 +125,11 @@ function App() {
             // 다음 음표로 이동
             return currentPos + 1;
           } else {
-            // 모든 음표를 완료했으면 새로운 악보 생성
+            // 모든 음표를 완료했으면 confetti 효과와 함께 새로운 악보 생성
+            confetti({
+              particleCount: 100,
+              spread: 200,
+            });
             setRefreshKey((prev) => prev + 1);
             setScore(0);
             return 0;
