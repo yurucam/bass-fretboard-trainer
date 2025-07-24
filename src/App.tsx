@@ -126,7 +126,7 @@ function App() {
             : currentNote.alter === -1
             ? "♭"
             : "") +
-          currentNote.octave; // 악보 옥타브 그대로 (실제로는 1옥타브 낮은 소리)
+          (currentNote.octave - 1); // 악보 옥타브에서 1을 빼서 실제 소리와 매칭
 
         // 디버깅 로그 추가
         console.log("🎵 음표 매칭 시도:", {
@@ -138,6 +138,7 @@ function App() {
             alter: currentNote.alter,
             octave: currentNote.octave,
           },
+          감지된주파수: detectedNote.frequency?.toFixed(1) + "Hz",
         });
 
         // 직접 매칭 확인
@@ -151,6 +152,14 @@ function App() {
           직접매칭: directMatch,
           이명동음매칭: enharmonicMatch,
           최종결과: directMatch || enharmonicMatch,
+          감지된음길이: detectedNote.note.length,
+          목표음길이: currentTargetNoteString.length,
+          감지된음코드: Array.from(detectedNote.note).map((c) =>
+            c.charCodeAt(0)
+          ),
+          목표음코드: Array.from(currentTargetNoteString).map((c) =>
+            c.charCodeAt(0)
+          ),
         });
 
         // 현재 커서 위치의 음과 감지된 음이 일치하는지 확인 (이명동음 포함)

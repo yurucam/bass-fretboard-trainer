@@ -139,26 +139,51 @@ export function useAudioInput({
       setState((prev) => ({ ...prev, detectedNote }));
 
       if (detectedNote) {
+        console.log(
+          "🎵 음 감지됨:",
+          detectedNote.note,
+          "주파수:",
+          frequency?.toFixed(1)
+        );
+
         // 연속 감지 로직
         if (lastNoteRef.current === detectedNote.note) {
           consecutiveCountRef.current++;
+          console.log(
+            "🔄 같은 음 연속 감지:",
+            consecutiveCountRef.current,
+            "회"
+          );
         } else {
           consecutiveCountRef.current = 1;
           lastNoteRef.current = detectedNote.note;
+          console.log("🆕 새로운 음 감지:", detectedNote.note);
         }
 
         // 필요한 연속 감지 횟수에 도달하면 콜백 호출
-        if (consecutiveCountRef.current === requiredConsecutiveDetections) {
+        if (consecutiveCountRef.current >= requiredConsecutiveDetections) {
+          console.log("✅ 콜백 호출 조건 만족! 음표:", detectedNote.note);
           onNoteDetected?.(detectedNote);
           // 같은 음이 계속 감지되어도 콜백이 한 번만 호출되도록
           // 카운터를 높은 값으로 설정하되, 다른 음이 감지되면 다시 리셋됨
           consecutiveCountRef.current = DETECTION_COMPLETE_THRESHOLD;
+          console.log(
+            "🔒 콜백 호출 후 카운터 잠금:",
+            DETECTION_COMPLETE_THRESHOLD
+          );
         }
 
         // 최근 감지된 음표 히스토리 관리 (안정화용)
         lastDetectedNotesRef.current.push(detectedNote.note);
         if (lastDetectedNotesRef.current.length > MAX_NOTE_HISTORY_LENGTH) {
           lastDetectedNotesRef.current.shift();
+        }
+      } else {
+        // 음이 감지되지 않을 때
+        if (lastNoteRef.current !== null) {
+          console.log("🔇 음 감지 중단");
+          lastNoteRef.current = null;
+          consecutiveCountRef.current = 0;
         }
       }
     });
