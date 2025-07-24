@@ -120,18 +120,15 @@ export function adaptToBassNoteFrequency(
   const [, step, accidental, octaveStr] = match;
   const octave = parseInt(octaveStr);
 
-  // 베이스 악보 관습에 맞게 옥타브 조정된 음표 문자열 생성
-  const bassNotationNote = step + accidental + (octave + 1);
-
   return {
-    note: bassNotationNote, // 베이스 악보 관습 적용된 음표 (E2 → E3)
+    note: pureNote.note, // 실제 감지된 음표를 그대로 사용 (E2는 E2로)
     frequency: pureNote.frequency,
     // deprecated 필드들 (기존 코드 호환성을 위해 유지)
     description: "",
     string: 0,
     fret: 0,
     step: step,
-    octave: octave + 1, // 베이스 악보 관습 (1옥타브 위 표기)
+    octave: octave, // 실제 옥타브 사용
     alter: accidental === "#" ? 1 : accidental === "♭" ? -1 : undefined,
   };
 }
