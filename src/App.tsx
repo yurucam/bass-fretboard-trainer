@@ -116,7 +116,9 @@ function App() {
           return currentPos;
         }
 
-        // 타겟 음표 문자열 생성 (베이스 악보 관습 적용)
+        // 타겟 음표 문자열 생성 (실제 소리로 변환)
+        // 베이스 악보는 실제 소리보다 1옥타브 높게 표기되므로,
+        // 악보의 옥타브에서 1을 빼서 실제 소리와 비교
         const currentTargetNoteString =
           currentNote.step +
           (currentNote.alter === 1
@@ -124,7 +126,7 @@ function App() {
             : currentNote.alter === -1
             ? "♭"
             : "") +
-          (currentNote.octave + 1); // 베이스 악보 관습 (1옥타브 위 표기)
+          currentNote.octave; // 악보 옥타브 그대로 (실제로는 1옥타브 낮은 소리)
 
         // 디버깅 로그 추가
         console.log("🎵 음표 매칭 시도:", {

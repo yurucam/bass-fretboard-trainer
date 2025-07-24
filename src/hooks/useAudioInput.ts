@@ -137,10 +137,10 @@ export function useAudioInput({
         }
 
         // 필요한 연속 감지 횟수에 도달하면 콜백 호출
-        if (consecutiveCountRef.current >= requiredConsecutiveDetections) {
+        if (consecutiveCountRef.current === requiredConsecutiveDetections) {
           onNoteDetected?.(detectedNote);
-          // 같은 음이 계속 감지되어도 콜백이 반복 호출되지 않도록
-          // 카운터를 리셋하지 않고 높은 값으로 설정
+          // 같은 음이 계속 감지되어도 콜백이 한 번만 호출되도록
+          // 카운터를 높은 값으로 설정하되, 다른 음이 감지되면 다시 리셋됨
           consecutiveCountRef.current = DETECTION_COMPLETE_THRESHOLD;
         }
 
@@ -212,10 +212,12 @@ export function useAudioInput({
       if (!state.detectedNote) return false;
 
       // BassNote를 문자열로 변환하여 비교
+      // 베이스 악보는 실제 소리보다 1옥타브 높게 표기되므로,
+      // 악보의 옥타브 그대로 사용하여 실제 소리와 비교
       const targetNoteString =
         targetNote.step +
         (targetNote.alter === 1 ? "#" : targetNote.alter === -1 ? "♭" : "") +
-        (targetNote.octave + 1); // 베이스 악보 관습 (1옥타브 위 표기)
+        targetNote.octave; // 악보 옥타브 그대로 (실제로는 1옥타브 낮은 소리)
 
       return state.detectedNote.note === targetNoteString;
     },
