@@ -161,44 +161,23 @@ export class AudioPitchDetector {
         yinBuffer[tau] *= tau / runningSum;
       }
 
-      // 기본음 우선 감지를 위한 개선된 알고리즘 (배음 억제)
+      // 간단한 YIN 알고리즘 (B현 최적화)
       let tau = 0;
-      let bestTau = 0;
-      let bestValue = 1.0;
-      const baseThreshold = this.isSafariBrowser ? 0.03 : 0.05;
+      const thresholdYIN = this.isSafariBrowser ? 0.02 : 0.03; // B현을 위해 임계값 완화
 
-      // 모든 주기에서 최적값 찾기 (기본음 우선)
+      // minPeriod 이후부터 첫 번째 dip 검색
       for (tau = minPeriod; tau < maxPeriod; tau++) {
-        const frequency = sampleRate / tau;
-
-        // 저주파수(기본음)에 가중치 부여
-        let weightedValue = yinBuffer[tau];
-        if (frequency < 100) {
-          // 저주파수일수록 더 낮은 값으로 처리 (우선순위 증가)
-          weightedValue *= frequency < 50 ? 0.7 : 0.85;
-        }
-
-        // 배음 억제: 이미 찾은 기본음의 배수 주파수는 페널티
-        if (bestTau > 0) {
-          const bestFreq = sampleRate / bestTau;
-          const ratio = frequency / bestFreq;
-          // 2배음, 3배음 등에 페널티 적용
-          if (Math.abs(ratio - Math.round(ratio)) < 0.1 && ratio > 1.5) {
-            weightedValue *= 1.5; // 배음에 페널티
+        if (yinBuffer[tau] < thresholdYIN) {
+          // 국소 최솟값 찾기
+          while (tau + 1 < maxPeriod && yinBuffer[tau + 1] < yinBuffer[tau]) {
+            tau++;
           }
-        }
-
-        const adaptiveThreshold =
-          frequency < 50 ? baseThreshold * 0.6 : baseThreshold;
-
-        if (weightedValue < adaptiveThreshold && weightedValue < bestValue) {
-          bestTau = tau;
-          bestValue = weightedValue;
+          break;
         }
       }
 
-      tau = bestTau;
-      if (tau === 0 || bestValue >= 0.5) {
+      // 유효한 주기를 찾지 못한 경우
+      if (tau === maxPeriod || yinBuffer[tau] >= 0.5) {
         return null;
       }
 
@@ -233,26 +212,6 @@ export class AudioPitchDetector {
       // B0(30.87Hz)를 안정적으로 감지하기 위해 하한선을 20Hz로 확장
       if (fundamentalFrequency < 20 || fundamentalFrequency > 500) {
         return null;
-      }
-
-      // 배음 억제: 감지된 주파수가 배음일 가능성 검사
-      if (fundamentalFrequency > 80) {
-        // 절반 주파수(기본음 후보)에서 더 강한 신호가 있는지 확인
-        const halfFreqPeriod = Math.round(betterTau * 2);
-        if (
-          halfFreqPeriod < maxPeriod &&
-          yinBuffer[halfFreqPeriod] < yinBuffer[Math.floor(betterTau)] * 0.8
-        ) {
-          const halfFrequency = sampleRate / halfFreqPeriod;
-          if (halfFrequency >= 20 && halfFrequency <= 100) {
-            console.log(
-              `🔄 배음 억제: ${fundamentalFrequency.toFixed(
-                2
-              )}Hz → ${halfFrequency.toFixed(2)}Hz (기본음)`
-            );
-            return halfFrequency;
-          }
-        }
       }
 
       // B현 주변 주파수 로깅 (디버깅용)
