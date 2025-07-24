@@ -249,11 +249,11 @@ export function useAudioInput({
 
       // BassNote를 문자열로 변환하여 비교
       // 베이스 악보는 실제 소리보다 1옥타브 높게 표기되므로,
-      // 악보의 옥타브 그대로 사용하여 실제 소리와 비교
+      // 악보의 옥타브에서 1을 빼서 실제 소리와 비교
       const targetNoteString =
         targetNote.step +
         (targetNote.alter === 1 ? "#" : targetNote.alter === -1 ? "♭" : "") +
-        targetNote.octave; // 악보 옥타브 그대로 (실제로는 1옥타브 낮은 소리)
+        (targetNote.octave - 1); // 악보 옥타브에서 1을 빼서 실제 소리와 매칭
 
       return state.detectedNote.note === targetNoteString;
     },
