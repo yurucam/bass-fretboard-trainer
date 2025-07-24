@@ -186,7 +186,7 @@ function App() {
     maxFret: maxFret,
     minFret: minFret,
     onNoteDetected: handleNoteDetected,
-    requiredConsecutiveDetections: 3,
+    requiredConsecutiveDetections: 1, // 1번만 감지되면 바로 반응
     cursorPosition: cursorPosition, // 커서 위치 전달
   });
 
