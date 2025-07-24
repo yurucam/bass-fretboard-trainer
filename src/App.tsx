@@ -112,10 +112,11 @@ function App() {
           !currentNote.step ||
           typeof currentNote.octave !== "number"
         ) {
+          console.warn("유효하지 않은 현재 음표:", currentNote);
           return currentPos;
         }
 
-        // 타겟 음표 문자열 생성
+        // 타겟 음표 문자열 생성 (베이스 악보 관습 적용)
         const currentTargetNoteString =
           currentNote.step +
           (currentNote.alter === 1
@@ -125,16 +126,41 @@ function App() {
             : "") +
           (currentNote.octave + 1); // 베이스 악보 관습 (1옥타브 위 표기)
 
+        // 디버깅 로그 추가
+        console.log("🎵 음표 매칭 시도:", {
+          감지된음: detectedNote.note,
+          목표음: currentTargetNoteString,
+          커서위치: currentPos,
+          현재음표정보: {
+            step: currentNote.step,
+            alter: currentNote.alter,
+            octave: currentNote.octave,
+          },
+        });
+
+        // 직접 매칭 확인
+        const directMatch = detectedNote.note === currentTargetNoteString;
+        const enharmonicMatch = isEnharmonicMatch(
+          detectedNote.note,
+          currentTargetNoteString
+        );
+
+        console.log("🔍 매칭 결과:", {
+          직접매칭: directMatch,
+          이명동음매칭: enharmonicMatch,
+          최종결과: directMatch || enharmonicMatch,
+        });
+
         // 현재 커서 위치의 음과 감지된 음이 일치하는지 확인 (이명동음 포함)
-        if (
-          detectedNote.note === currentTargetNoteString ||
-          isEnharmonicMatch(detectedNote.note, currentTargetNoteString)
-        ) {
+        if (directMatch || enharmonicMatch) {
+          console.log("✅ 매칭 성공! 다음 음표로 이동");
+
           if (currentPos < currentRandomNotes.length - 1) {
             // 다음 음표로 이동
             return currentPos + 1;
           } else {
             // 모든 음표를 완료했으면 confetti 효과와 함께 새로운 악보 생성
+            console.log("🎉 모든 음표 완료!");
             confetti({
               particleCount: 100,
               spread: 200,
@@ -142,6 +168,8 @@ function App() {
             setRefreshKey((prev) => prev + 1);
             return 0;
           }
+        } else {
+          console.log("❌ 매칭 실패 - 커서 위치 유지");
         }
 
         return currentPos;

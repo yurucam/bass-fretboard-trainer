@@ -85,36 +85,54 @@ export function frequencyToPureNote(frequency: number): PureNote | null {
 export function isEnharmonicMatch(note1: string, note2: string): boolean {
   if (note1 === note2) return true;
 
-  // 옥타브 분리
-  const note1Base = note1.slice(0, -1);
-  const note1Octave = note1.slice(-1);
-  const note2Base = note2.slice(0, -1);
-  const note2Octave = note2.slice(-1);
+  // 정규식을 사용한 정확한 음표 파싱
+  const parseNote = (note: string) => {
+    const match = note.match(/^([A-G][#♭]?)(\d+)$/);
+    if (!match) return null;
+    return {
+      base: match[1],
+      octave: match[2],
+    };
+  };
+
+  const parsed1 = parseNote(note1);
+  const parsed2 = parseNote(note2);
+
+  if (!parsed1 || !parsed2) return false;
 
   // 옥타브가 다르면 false
-  if (note1Octave !== note2Octave) return false;
+  if (parsed1.octave !== parsed2.octave) return false;
 
   // 이명동음 체크
-  return ENHARMONIC_MAP[note1Base] === note2Base;
+  return ENHARMONIC_MAP[parsed1.base] === parsed2.base;
 }
 
 // 순수 음을 BassNoteFrequency로 변환 (하위 호환성)
 export function adaptToBassNoteFrequency(
   pureNote: PureNote
 ): BassNoteFrequency {
-  const noteBase = pureNote.note.slice(0, -1);
-  const octave = parseInt(pureNote.note.slice(-1));
+  // 정규식을 사용한 정확한 음표 파싱 (샤프와 플랫 모두 지원)
+  const match = pureNote.note.match(/^([A-G])([#♭]?)(\d+)$/);
+  if (!match) {
+    throw new Error(`Invalid note format: ${pureNote.note}`);
+  }
+
+  const [, step, accidental, octaveStr] = match;
+  const octave = parseInt(octaveStr);
+
+  // 베이스 악보 관습에 맞게 옥타브 조정된 음표 문자열 생성
+  const bassNotationNote = step + accidental + (octave + 1);
 
   return {
-    note: pureNote.note,
+    note: bassNotationNote, // 베이스 악보 관습 적용된 음표 (E2 → E3)
     frequency: pureNote.frequency,
     // deprecated 필드들 (기존 코드 호환성을 위해 유지)
     description: "",
     string: 0,
     fret: 0,
-    step: noteBase.replace("#", ""),
+    step: step,
     octave: octave + 1, // 베이스 악보 관습 (1옥타브 위 표기)
-    alter: noteBase.includes("#") ? 1 : undefined,
+    alter: accidental === "#" ? 1 : accidental === "♭" ? -1 : undefined,
   };
 }
 
