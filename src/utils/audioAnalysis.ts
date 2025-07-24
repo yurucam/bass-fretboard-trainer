@@ -133,9 +133,9 @@ export class AudioPitchDetector {
       const bufferSize = normalizedSignal.length;
       const sampleRate = this.audioContext.sampleRate;
 
-      // 베이스 기타 전체 주파수 범위에 해당하는 지연 계산 (C5 523Hz까지 확장)
-      const minPeriod = Math.floor(sampleRate / 500); // 고음역까지 확장 (C5 523Hz)
-      const maxPeriod = Math.ceil(sampleRate / 25); // 저음역 확장 (25Hz)
+      // 5현 베이스 B현(30.87Hz)을 위한 확장된 주파수 범위
+      const minPeriod = Math.floor(sampleRate / 500); // 고음역 (500Hz)
+      const maxPeriod = Math.ceil(sampleRate / 20); // 저음역 확장 (20Hz, B현 안정 감지)
 
       // YIN 알고리즘 사용
       const yinBuffer = new Float32Array(maxPeriod);
@@ -161,13 +161,18 @@ export class AudioPitchDetector {
         yinBuffer[tau] *= tau / runningSum;
       }
 
-      // 임계값을 사용하여 주기 검출 (더 민감하게 조정)
+      // 5현 베이스 B현을 위한 저주파수 최적화된 임계값
       let tau = 0;
-      const thresholdYIN = this.isSafariBrowser ? 0.03 : 0.05;
+      const baseThreshold = this.isSafariBrowser ? 0.03 : 0.05;
 
-      // minPeriod 이후부터 첫 번째 dip 검색
+      // minPeriod 이후부터 첫 번째 dip 검색 (저주파수에서 더 관대하게)
       for (tau = minPeriod; tau < maxPeriod; tau++) {
-        if (yinBuffer[tau] < thresholdYIN) {
+        const frequency = sampleRate / tau;
+        // B현(30.87Hz) 주변에서는 더 낮은 임계값 사용
+        const adaptiveThreshold =
+          frequency < 50 ? baseThreshold * 0.6 : baseThreshold;
+
+        if (yinBuffer[tau] < adaptiveThreshold) {
           // 국소 최솟값 찾기
           while (tau + 1 < maxPeriod && yinBuffer[tau + 1] < yinBuffer[tau]) {
             tau++;
@@ -203,11 +208,17 @@ export class AudioPitchDetector {
       // 주파수 계산
       const fundamentalFrequency = sampleRate / betterTau;
 
-      // 베이스 기타 전체 주파수 범위 외의 주파수는 무시 (25Hz ~ 500Hz)
-      // 4현 베이스: E1(41.2Hz) ~ C5(523Hz, 24프렛)
-      // 5현/6현 베이스: B0(30.87Hz) ~ C5(523Hz)
-      if (fundamentalFrequency < 25 || fundamentalFrequency > 500) {
+      // 5현 베이스 B현을 위한 확장된 주파수 범위 (20Hz ~ 500Hz)
+      // B0(30.87Hz)를 안정적으로 감지하기 위해 하한선을 20Hz로 확장
+      if (fundamentalFrequency < 20 || fundamentalFrequency > 500) {
         return null;
+      }
+
+      // B현 주변 주파수 로깅 (디버깅용)
+      if (fundamentalFrequency >= 25 && fundamentalFrequency <= 40) {
+        console.log(
+          `🎵 저주파수 감지 (B현 후보): ${fundamentalFrequency.toFixed(2)}Hz`
+        );
       }
 
       return fundamentalFrequency;
