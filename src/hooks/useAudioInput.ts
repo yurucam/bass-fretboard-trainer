@@ -26,6 +26,7 @@ export interface UseAudioInputOptions {
   minFret?: number;
   onNoteDetected?: (note: BassNoteFrequency) => void;
   requiredConsecutiveDetections?: number;
+  cursorPosition?: number; // 커서 위치 추가
 }
 
 export function useAudioInput({
@@ -34,6 +35,7 @@ export function useAudioInput({
   minFret = 0,
   onNoteDetected,
   requiredConsecutiveDetections = 3,
+  cursorPosition = 0,
 }: UseAudioInputOptions) {
   const [state, setState] = useState<AudioInputState>({
     isInitialized: false,
@@ -49,6 +51,15 @@ export function useAudioInput({
   const lastDetectedNotesRef = useRef<string[]>([]);
   const consecutiveCountRef = useRef<number>(0);
   const lastNoteRef = useRef<string | null>(null);
+
+  // 커서 위치가 변경될 때 연속 감지 상태 리셋
+  useEffect(() => {
+    // 커서가 이동하면 연속 감지 상태를 초기화
+    consecutiveCountRef.current = 0;
+    lastNoteRef.current = null;
+    lastDetectedNotesRef.current = [];
+    console.log("커서 위치 변경으로 인한 감지 상태 리셋:", cursorPosition);
+  }, [cursorPosition]);
 
   // 연습 범위용 매핑만 유지 (하위 호환성을 위해)
   useEffect(() => {

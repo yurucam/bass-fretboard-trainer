@@ -187,6 +187,7 @@ function App() {
     minFret: minFret,
     onNoteDetected: handleNoteDetected,
     requiredConsecutiveDetections: 3,
+    cursorPosition: cursorPosition, // 커서 위치 전달
   });
 
   const handleTuningChange = (newTuning: BassTuning) => {
