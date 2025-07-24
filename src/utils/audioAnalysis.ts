@@ -1,6 +1,17 @@
-// 브라우저가 Safari인지 확인
+// 브라우저가 Safari인지 확인 (더 정확한 감지)
 function isSafari(): boolean {
-  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const userAgent = navigator.userAgent.toLowerCase();
+
+  // Safari는 'safari'를 포함하지만 'chrome'이나 'chromium'을 포함하지 않음
+  // WebKit 기반이지만 Chrome/Edge가 아닌 경우
+  return (
+    userAgent.includes("safari") &&
+    !userAgent.includes("chrome") &&
+    !userAgent.includes("chromium") &&
+    !userAgent.includes("edg") && // Edge
+    !userAgent.includes("opr") && // Opera
+    !userAgent.includes("firefox")
+  );
 }
 
 // WebKit AudioContext 타입 정의
@@ -122,9 +133,9 @@ export class AudioPitchDetector {
       const bufferSize = normalizedSignal.length;
       const sampleRate = this.audioContext.sampleRate;
 
-      // 베이스 기타 주파수 범위에 해당하는 지연 계산 (A1 55Hz까지 포함)
-      const minPeriod = Math.floor(sampleRate / 200); // 더 높은 주파수까지
-      const maxPeriod = Math.ceil(sampleRate / 30); // A1 (55Hz)보다 낮은 주파수까지
+      // 베이스 기타 전체 주파수 범위에 해당하는 지연 계산 (C5 523Hz까지 확장)
+      const minPeriod = Math.floor(sampleRate / 500); // 고음역까지 확장 (C5 523Hz)
+      const maxPeriod = Math.ceil(sampleRate / 25); // 저음역 확장 (25Hz)
 
       // YIN 알고리즘 사용
       const yinBuffer = new Float32Array(maxPeriod);
@@ -192,8 +203,10 @@ export class AudioPitchDetector {
       // 주파수 계산
       const fundamentalFrequency = sampleRate / betterTau;
 
-      // 베이스 기타 주파수 범위 외의 주파수는 무시 (A1 55Hz 포함)
-      if (fundamentalFrequency < 30 || fundamentalFrequency > 200) {
+      // 베이스 기타 전체 주파수 범위 외의 주파수는 무시 (25Hz ~ 500Hz)
+      // 4현 베이스: E1(41.2Hz) ~ C5(523Hz, 24프렛)
+      // 5현/6현 베이스: B0(30.87Hz) ~ C5(523Hz)
+      if (fundamentalFrequency < 25 || fundamentalFrequency > 500) {
         return null;
       }
 
@@ -224,7 +237,7 @@ export class AudioPitchDetector {
   }
 
   // 리소스 정리
-  cleanup(): void {
+  async cleanup(): Promise<void> {
     this.stopDetection();
 
     if (this.microphone) {
@@ -239,9 +252,13 @@ export class AudioPitchDetector {
     }
 
     if (this.audioContext) {
-      this.audioContext.close();
+      try {
+        await this.audioContext.close();
+        console.log("오디오 컨텍스트 해제됨");
+      } catch (error) {
+        console.warn("오디오 컨텍스트 해제 중 오류:", error);
+      }
       this.audioContext = null;
-      console.log("오디오 컨텍스트 해제됨");
     }
 
     this.timeDataArray = null;

@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { AudioPitchDetector } from "../utils/audioAnalysis";
 import {
   generateBassFrequencyMapping,
-  generateFrequencyRanges,
   frequencyToNote,
   type BassNoteFrequency,
 } from "../utils/bassFrequencyMapping";
 import type { BassTuning, BassNote } from "../bassNoteGenerator";
+
+// 상수 정의
+const DETECTION_COMPLETE_THRESHOLD = 10; // 같은 음 반복 감지 방지를 위한 합리적인 임계값
+const MAX_NOTE_HISTORY_LENGTH = 10;
 
 export interface AudioInputState {
   isInitialized: boolean;
@@ -42,27 +45,26 @@ export function useAudioInput({
   });
 
   const detectorRef = useRef<AudioPitchDetector | null>(null);
-  const bassNotesRef = useRef<BassNoteFrequency[]>([]);
-  const frequencyRangesRef = useRef<{
-    [key: string]: { min: number; max: number; target: number };
-  }>({});
+  const bassNotesRef = useRef<BassNoteFrequency[]>([]); // 연습 범위용 (하위 호환성)
   const lastDetectedNotesRef = useRef<string[]>([]);
   const consecutiveCountRef = useRef<number>(0);
   const lastNoteRef = useRef<string | null>(null);
 
-  // 튜닝이 변경될 때마다 베이스 음표 매핑 업데이트
+  // 연습 범위용 매핑만 유지 (하위 호환성을 위해)
   useEffect(() => {
+    // 연습 범위용 매핑 (사용자 설정 프렛 범위)
     bassNotesRef.current = generateBassFrequencyMapping(
       tuning,
       maxFret,
       minFret
     );
-    frequencyRangesRef.current = generateFrequencyRanges(bassNotesRef.current);
+
     console.log(
-      "베이스 음표 매핑 업데이트됨:",
+      "베이스 음표 매핑 업데이트됨 (연습용):",
       bassNotesRef.current.length,
       "개 음표"
     );
+    console.log("순수 음 인식 모드: 프렛/튜닝과 독립적으로 음 인식");
   }, [tuning, maxFret, minFret]);
 
   // 오디오 컨텍스트 초기화
@@ -120,8 +122,8 @@ export function useAudioInput({
         return;
       }
 
-      // 주파수를 베이스 음표로 변환
-      const detectedNote = frequencyToNote(frequency, bassNotesRef.current);
+      // 주파수를 베이스 음표로 변환 (순수 음 인식 - 프렛/튜닝 무관)
+      const detectedNote = frequencyToNote(frequency);
 
       setState((prev) => ({ ...prev, detectedNote }));
 
@@ -139,12 +141,12 @@ export function useAudioInput({
           onNoteDetected?.(detectedNote);
           // 같은 음이 계속 감지되어도 콜백이 반복 호출되지 않도록
           // 카운터를 리셋하지 않고 높은 값으로 설정
-          consecutiveCountRef.current = 999;
+          consecutiveCountRef.current = DETECTION_COMPLETE_THRESHOLD;
         }
 
         // 최근 감지된 음표 히스토리 관리 (안정화용)
         lastDetectedNotesRef.current.push(detectedNote.note);
-        if (lastDetectedNotesRef.current.length > 10) {
+        if (lastDetectedNotesRef.current.length > MAX_NOTE_HISTORY_LENGTH) {
           lastDetectedNotesRef.current.shift();
         }
       }
@@ -175,9 +177,13 @@ export function useAudioInput({
   }, []);
 
   // 리소스 정리
-  const cleanup = useCallback(() => {
+  const cleanup = useCallback(async () => {
     if (detectorRef.current) {
-      detectorRef.current.cleanup();
+      try {
+        await detectorRef.current.cleanup();
+      } catch (error) {
+        console.warn("오디오 감지기 정리 중 오류:", error);
+      }
       detectorRef.current = null;
     }
 
@@ -209,7 +215,7 @@ export function useAudioInput({
       const targetNoteString =
         targetNote.step +
         (targetNote.alter === 1 ? "#" : targetNote.alter === -1 ? "♭" : "") +
-        (targetNote.octave - 1); // 베이스 악보는 1옥타브 위로 표기
+        (targetNote.octave + 1); // 베이스 악보 관습 (1옥타브 위 표기)
 
       return state.detectedNote.note === targetNoteString;
     },
@@ -223,7 +229,7 @@ export function useAudioInput({
     stopDetection,
     cleanup,
     isNoteMatching,
-    bassNotes: bassNotesRef.current,
+    bassNotes: bassNotesRef.current, // 연습 범위용 (하위 호환성)
     consecutiveCount: consecutiveCountRef.current,
     requiredConsecutiveDetections,
   };

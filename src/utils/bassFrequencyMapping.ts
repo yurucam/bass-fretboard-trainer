@@ -1,18 +1,124 @@
 import type { BassTuning, BassNote } from "../bassNoteGenerator";
 
-// 베이스 음표와 주파수 정보
+// 순수한 음 정보 (프렛/튜닝 무관)
+export interface PureNote {
+  note: string; // "C4", "C#3" 등
+  frequency: number; // 실제 주파수
+}
+
+// 베이스 음표와 주파수 정보 (하위 호환성을 위해 유지)
 export interface BassNoteFrequency {
   note: string;
   frequency: number;
-  description: string;
-  string: number;
-  fret: number;
-  step: string;
-  octave: number;
-  alter?: number;
+  description?: string; // deprecated: 프렛 정보
+  string?: number; // deprecated: 현 번호
+  fret?: number; // deprecated: 프렛 번호
+  step?: string; // deprecated: 음계 단계
+  octave?: number; // deprecated: 옥타브
+  alter?: number; // deprecated: 샤프/플랫
 }
 
-// 음표 이름을 주파수로 변환하는 함수
+// 크로매틱 음계 (샤프 표기 통일)
+const CHROMATIC_NOTES = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
+
+// 이명동음 매핑 (샤프 ↔ 플랫)
+const ENHARMONIC_MAP: { [key: string]: string } = {
+  "C#": "D♭",
+  "D♭": "C#",
+  "D#": "E♭",
+  "E♭": "D#",
+  "F#": "G♭",
+  "G♭": "F#",
+  "G#": "A♭",
+  "A♭": "G#",
+  "A#": "B♭",
+  "B♭": "A#",
+};
+
+// 주파수를 순수한 음이름으로 변환 (A4 = 440Hz 기준)
+export function frequencyToPureNote(frequency: number): PureNote | null {
+  // 주파수 유효성 검사 강화
+  if (!isFinite(frequency) || frequency <= 0) {
+    return null;
+  }
+
+  // 베이스 주파수 범위 체크 (25Hz ~ 500Hz)
+  if (frequency < 25 || frequency > 500) {
+    return null;
+  }
+
+  // MIDI 번호 계산 (A4 = 440Hz = MIDI 69)
+  const logValue = Math.log2(frequency / 440);
+  if (!isFinite(logValue)) {
+    return null;
+  }
+
+  const midiNumber = Math.round(12 * logValue + 69);
+
+  // 음이름과 옥타브 계산
+  const noteIndex = midiNumber % 12;
+  const octave = Math.floor(midiNumber / 12) - 1;
+
+  // 정확한 주파수 재계산
+  const exactFrequency = 440 * Math.pow(2, (midiNumber - 69) / 12);
+
+  return {
+    note: CHROMATIC_NOTES[noteIndex] + octave,
+    frequency: exactFrequency,
+  };
+}
+
+// 이명동음 매칭 함수 (C#3 ↔ D♭3)
+export function isEnharmonicMatch(note1: string, note2: string): boolean {
+  if (note1 === note2) return true;
+
+  // 옥타브 분리
+  const note1Base = note1.slice(0, -1);
+  const note1Octave = note1.slice(-1);
+  const note2Base = note2.slice(0, -1);
+  const note2Octave = note2.slice(-1);
+
+  // 옥타브가 다르면 false
+  if (note1Octave !== note2Octave) return false;
+
+  // 이명동음 체크
+  return ENHARMONIC_MAP[note1Base] === note2Base;
+}
+
+// 순수 음을 BassNoteFrequency로 변환 (하위 호환성)
+export function adaptToBassNoteFrequency(
+  pureNote: PureNote
+): BassNoteFrequency {
+  const noteBase = pureNote.note.slice(0, -1);
+  const octave = parseInt(pureNote.note.slice(-1));
+
+  return {
+    note: pureNote.note,
+    frequency: pureNote.frequency,
+    // deprecated 필드들 (기존 코드 호환성을 위해 유지)
+    description: "",
+    string: 0,
+    fret: 0,
+    step: noteBase.replace("#", ""),
+    octave: octave + 1, // 베이스 악보 관습 (1옥타브 위 표기)
+    alter: noteBase.includes("#") ? 1 : undefined,
+  };
+}
+
+// 음표 이름을 주파수로 변환하는 함수 (기존 호환성)
 function noteToFrequency(noteName: string, octave: number): number {
   const A4_FREQUENCY = 440.0;
   const A4_MIDI = 69;
@@ -43,7 +149,7 @@ function noteToFrequency(noteName: string, octave: number): number {
   return A4_FREQUENCY * Math.pow(2, semitonesFromA4 / 12);
 }
 
-// 튜닝 설정에 따라 베이스 음표 주파수 매핑 생성
+// 튜닝 설정에 따라 베이스 음표 주파수 매핑 생성 (하위 호환성을 위해 유지)
 export function generateBassFrequencyMapping(
   tuning: BassTuning,
   maxFret: number = 12,
@@ -108,87 +214,58 @@ export function generateBassFrequencyMapping(
   return bassNotes;
 }
 
-// 주파수 범위 생성 (반음 간격으로 범위 설정)
-export function generateFrequencyRanges(bassNotes: BassNoteFrequency[]): {
+// 주파수 범위 생성 (deprecated - 순수 음 인식에서는 불필요)
+export function generateFrequencyRanges(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _bassNotes: BassNoteFrequency[]
+): {
   [key: string]: { min: number; max: number; target: number };
 } {
-  const ranges: {
-    [key: string]: { min: number; max: number; target: number };
-  } = {};
-
-  // 모든 주파수를 정렬
-  const sortedFrequencies = bassNotes
-    .map((note) => note.frequency)
-    .sort((a, b) => a - b);
-
-  bassNotes.forEach((note) => {
-    const frequency = note.frequency;
-    const noteKey = note.note;
-
-    // 이미 처리된 음표는 건너뛰기
-    if (ranges[noteKey]) return;
-
-    // 현재 주파수의 인덱스 찾기
-    const currentIndex = sortedFrequencies.indexOf(frequency);
-
-    // 이전 주파수와 다음 주파수 찾기
-    const prevFreq =
-      currentIndex > 0 ? sortedFrequencies[currentIndex - 1] : frequency * 0.9;
-    const nextFreq =
-      currentIndex < sortedFrequencies.length - 1
-        ? sortedFrequencies[currentIndex + 1]
-        : frequency * 1.1;
-
-    // 범위 계산 (이전 주파수와의 중점부터 다음 주파수와의 중점까지)
-    const minFreq = (prevFreq + frequency) / 2;
-    const maxFreq = (frequency + nextFreq) / 2;
-
-    ranges[noteKey] = {
-      min: minFreq,
-      max: maxFreq,
-      target: frequency,
-    };
-  });
-
-  return ranges;
+  // 하위 호환성을 위해 유지하지만 빈 객체 반환
+  console.warn(
+    "generateFrequencyRanges is deprecated. 순수 음 인식에서는 불필요합니다."
+  );
+  return {};
 }
 
-// 감지된 주파수를 베이스 음표로 변환
+// 감지된 주파수를 베이스 음표로 변환 (새로운 순수 음 인식 로직)
 export function frequencyToNote(
   frequency: number,
-  bassNotes: BassNoteFrequency[]
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _bassNotes?: BassNoteFrequency[] // 하위 호환성을 위해 유지하지만 사용하지 않음
 ): BassNoteFrequency | null {
-  // 기본음 검사 - 더 관대한 허용 오차 적용
-  let bestMatch: { note: BassNoteFrequency; error: number } | null = null;
-
-  for (const note of bassNotes) {
-    const targetFreq = note.frequency;
-    const tolerance = targetFreq * 0.15; // 15% 허용 오차로 확대
-    const error = Math.abs(frequency - targetFreq);
-
-    if (error <= tolerance) {
-      if (!bestMatch || error < bestMatch.error) {
-        bestMatch = { note, error };
-      }
-    }
+  // 순수 음 인식 사용
+  const pureNote = frequencyToPureNote(frequency);
+  if (!pureNote) {
+    return null;
   }
 
-  // 기본음에서 매치가 있으면 우선 반환
-  if (bestMatch) {
-    return bestMatch.note;
+  // 기존 인터페이스로 변환
+  return adaptToBassNoteFrequency(pureNote);
+}
+
+// 배음 감지를 포함한 고급 주파수 분석
+export function frequencyToNoteWithHarmonics(
+  frequency: number
+): BassNoteFrequency | null {
+  // 기본음 우선 검사
+  const fundamentalNote = frequencyToPureNote(frequency);
+  if (fundamentalNote) {
+    return adaptToBassNoteFrequency(fundamentalNote);
   }
 
-  // 배음 검사는 기본음 매치가 없을 때만 수행 (2-3배음만)
-  for (const note of bassNotes) {
-    const targetFreq = note.frequency;
+  // 배음 검사 (2-4배음)
+  for (let harmonic = 2; harmonic <= 4; harmonic++) {
+    const fundamentalFreq = frequency / harmonic;
+    const harmonicNote = frequencyToPureNote(fundamentalFreq);
 
-    for (let harmonic = 2; harmonic <= 3; harmonic++) {
-      const harmonicFreq = targetFreq * harmonic;
-      const tolerance = harmonicFreq * 0.2; // 20% 허용 오차
-
-      if (Math.abs(frequency - harmonicFreq) <= tolerance) {
-        return note;
-      }
+    if (harmonicNote) {
+      console.log(
+        `배음 감지: ${harmonicNote.note} (${harmonic}배음, ${frequency.toFixed(
+          1
+        )}Hz)`
+      );
+      return adaptToBassNoteFrequency(harmonicNote);
     }
   }
 
@@ -200,10 +277,15 @@ export function bassNoteToFrequency(
   bassNote: BassNote,
   bassNotes: BassNoteFrequency[]
 ): BassNoteFrequency | null {
+  // 입력 유효성 검사
+  if (!bassNote || !bassNote.step || typeof bassNote.octave !== "number") {
+    return null;
+  }
+
   const noteString =
     bassNote.step +
     (bassNote.alter === 1 ? "#" : bassNote.alter === -1 ? "♭" : "") +
-    (bassNote.octave - 1); // 베이스 악보는 1옥타브 위로 표기되므로 실제 소리는 1옥타브 아래
+    (bassNote.octave + 1); // 베이스 악보 관습 (1옥타브 위 표기)
 
   return (
     bassNotes.find((note) => {
@@ -212,10 +294,10 @@ export function bassNoteToFrequency(
 
       // 플랫/샤프 이명동음 처리
       if (bassNote.alter === 1) {
-        const sharpNote = bassNote.step + "#" + (bassNote.octave - 1);
+        const sharpNote = bassNote.step + "#" + bassNote.octave;
         return note.note === sharpNote;
       } else if (bassNote.alter === -1) {
-        const flatNote = bassNote.step + "♭" + (bassNote.octave - 1);
+        const flatNote = bassNote.step + "♭" + bassNote.octave;
         return note.note === flatNote;
       }
 

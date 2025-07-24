@@ -14,6 +14,10 @@ import {
   setTuning,
   setKeySignature,
 } from "./bassNoteGenerator";
+import {
+  isEnharmonicMatch,
+  type BassNoteFrequency,
+} from "./utils/bassFrequencyMapping";
 
 // localStorage 키들
 const STORAGE_KEYS = {
@@ -89,21 +93,27 @@ function App() {
   const randomNotesRef = useRef(randomNotes);
   randomNotesRef.current = randomNotes;
 
-  // MusicXML 생성 - 음표명 표시 여부, 조표가 바뀔 때만 다시 생성
+  // MusicXML 생성 - 음이름 표시 여부, 조표가 바뀔 때만 다시 생성
   const musicXmlContent = useMemo(() => {
     return generateMusicXML(randomNotes, showNoteNames, currentKeySignature);
   }, [randomNotes, showNoteNames, currentKeySignature]);
 
   // 음표 감지 처리 함수
   const handleNoteDetected = useCallback(
-    (detectedNote: { note: string }) => {
+    (detectedNote: BassNoteFrequency) => {
       setCursorPosition((currentPos) => {
         // 최신 randomNotes를 참조
         const currentRandomNotes = randomNotesRef.current;
 
         // 현재 커서 위치의 음표 가져오기
         const currentNote = currentRandomNotes[currentPos];
-        if (!currentNote) return currentPos;
+        if (
+          !currentNote ||
+          !currentNote.step ||
+          typeof currentNote.octave !== "number"
+        ) {
+          return currentPos;
+        }
 
         // 타겟 음표 문자열 생성
         const currentTargetNoteString =
@@ -113,10 +123,13 @@ function App() {
             : currentNote.alter === -1
             ? "♭"
             : "") +
-          (currentNote.octave - 1); // 베이스 악보는 1옥타브 위로 표기
+          (currentNote.octave + 1); // 베이스 악보 관습 (1옥타브 위 표기)
 
-        // 현재 커서 위치의 음과 감지된 음이 일치하는지 확인
-        if (detectedNote.note === currentTargetNoteString) {
+        // 현재 커서 위치의 음과 감지된 음이 일치하는지 확인 (이명동음 포함)
+        if (
+          detectedNote.note === currentTargetNoteString ||
+          isEnharmonicMatch(detectedNote.note, currentTargetNoteString)
+        ) {
           if (currentPos < currentRandomNotes.length - 1) {
             // 다음 음표로 이동
             return currentPos + 1;
@@ -180,7 +193,7 @@ function App() {
       STORAGE_KEYS.SHOW_NOTE_NAMES,
       JSON.stringify(newValue)
     );
-    // refreshKey를 변경하지 않음 - 같은 악보에서 음표명만 토글
+    // refreshKey를 변경하지 않음 - 같은 악보에서 음이름만 토글
   };
 
   const handleKeySignatureChange = (newKeySignature: KeySignature) => {
@@ -236,7 +249,7 @@ function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showNoteNames]);
+  }, [handleNewExercise, handleShowNoteNamesToggle]);
 
   return (
     <div
@@ -328,7 +341,7 @@ function App() {
               borderRadius: "4px",
             }}
           >
-            음표명: {showNoteNames ? "ON" : "OFF"}
+            음이름: {showNoteNames ? "ON" : "OFF"}
           </span>
 
           {/* 실시간 음 감지 결과 */}
@@ -428,7 +441,7 @@ function App() {
               fontWeight: "bold",
             }}
           >
-            음표명 (L)
+            음이름 (L)
           </button>
 
           {/* 오디오 훈련 시작/중지 버튼 */}
